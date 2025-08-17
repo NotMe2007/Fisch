@@ -8,126 +8,151 @@ CoordMode, Tooltip, Relative
 CoordMode, Pixel, Relative
 CoordMode, Mouse, Relative
 
+; Theme state
+DarkMode := 0
+
 ; 		GUI		==============================================================================================================;
+
+; If a saved theme exists in default.ini, load it so controls are created with correct colors
+IniRead, startDarkMode, %A_ScriptDir%\default.ini, General, DarkMode
+if (startDarkMode != "")
+	DarkMode := startDarkMode
 
 Gui,+AlwaysOnTop
 Gui, +Resize +MinSize
 Gui, Margin, 12, 12
-Gui, Color, 0xF5F5F5
-Gui, Font, s12, Segoe UI
-Gui, Add, Text, x0 y6 w800 Center, Fisch Macro V12 - Remasterd
-Gui, Font, s10, Segoe UI
-Gui, Add, Tab2, x10 y40 w780 h500, General Settings|Shake Settings|Minigame Settings
+if (DarkMode)
+{
+	Gui, Color, 0x1E1E1E
+	Gui, Font, s12 cFFFFFF, Segoe UI
+	FontColor := "FFFFFF"
+}
+else
+{
+	Gui, Color, 0xF5F5F5
+	Gui, Font, s12 c000000, Segoe UI
+	FontColor := "000000"
+}
+; Title label removed from main GUI (window title still set separately)
+Gui, Font, s10 c%FontColor%, Segoe UI
+Gui, Add, Tab2, x10 y15 w780 h500, General Settings|Shake Settings|Minigame Settings
 
 ; General Settings Tab ==============================
 Gui, Tab, General Settings
-Gui, Add, Text, x30 y40, Auto Lower Graphics:
-Gui, Add, Checkbox, x170 y40 vAutoLowerGraphics, Enable
-Gui, Add, Text, x30 y80, Auto Zoom In:
-Gui, Add, Checkbox, x170 y80 vAutoZoomInCamera, Enable
-Gui, Add, Text, x30 y120, Auto Enable Camera Mode:
-Gui, Add, Checkbox, x170 y120 vAutoEnableCameraMode, Enable
-Gui, Add, Text, x30 y160, Auto Look Down:
-Gui, Add, Checkbox, x170 y160 vAutoLookDownCamera, Enable
-Gui, Add, Text, x30 y200, Auto Blur:
-Gui, Add, Checkbox, x170 y200 vAutoBlurCamera, Enable
+Gui, Add, Text, x30 y50, Lower Graphics:
+Gui, Add, Button, x170 y50 w20 h18 gHelpLower, ?
+Gui, Add, Checkbox, x266 y50 vAutoLowerGraphics, Enable
+Gui, Add, Text, x30 y90, Zoom In:
+Gui, Add, Button, x170 y90 w20 h18 gHelpZoom, ?
+Gui, Add, Checkbox, x266 y90 vAutoZoomInCamera, Enable
+Gui, Add, Text, x30 y130, Enable Camera Mode:
+Gui, Add, Button, x170 y130 w20 h18 gHelpEnableCam, ?
+Gui, Add, Checkbox, x266 y130 vAutoEnableCameraMode, Enable
+Gui, Add, Text, x30 y170, Look Down:
+Gui, Add, Button, x170 y170 w20 h18 gHelpLookDown, ?
+Gui, Add, Checkbox, x266 y170 vAutoLookDownCamera, Enable
+Gui, Add, Text, x30 y210, Blur:
+Gui, Add, Button, x170 y210 w20 h18 gHelpBlur, ?
+Gui, Add, Checkbox, x266 y210 vAutoBlurCamera, Enable
 Gui, Add, Text, x30 y240, Restart Delay (ms):
-Gui, Add, Edit, x170 y240 w100 vRestartDelay, 1500
+Gui, Add, Edit, x220 y240 w100 vRestartDelay, 1500
 Gui, Add, Text, x30 y280, Hold Rod Cast Duration (ms):
-Gui, Add, Edit, x170 y280 w100 vHoldRodCastDuration, 600
+Gui, Add, Edit, x220 y280 w100 vHoldRodCastDuration, 600
 Gui, Add, Text, x30 y320, Wait for Bobber to Land (ms):
-Gui, Add, Edit, x170 y320 w100 vWaitForBobberDelay, 1000
+Gui, Add, Edit, x220 y320 w100 vWaitForBobberDelay, 1000
 Gui, Add, Text, x30 y360, Bait Delay (ms):
-Gui, Add, Edit, x170 y360 w100 vBaitDelay, 300
+Gui, Add, Edit, x220 y360 w100 vBaitDelay, 300
 Gui, Add, Text, x30 y400, Default at 300
 
 Gui, Add, Text, x380 y300, Seraphic Rod Check:
 Gui, Add, Checkbox, x500 y300 vSera, Enable
 Gui, Add, Text, x380 y320, Only Enable if youre using Seraphic Rod
 
-; Mini guide (links removed)
-Gui, Add, Text, x380 y40, Join White Sands Macros
-Gui, Add, Text, x380 y60, Check out the pre-setup before you begin (Only available in the discord above)
-Gui, Add, Text, x380 y80, If its your first time, please check all the boxes
-Gui, Add, Text, x380 y120, Click the camera icon top right in case it doesnt work
-Gui, Add, Text, x380 y200, If youre wondering, this will open the menu after enabling camera mode
-Gui, Add, Text, x380 y240, Adjust wait time before restarting the macro
-Gui, Add, Text, x380 y280, Increase the Hold duration if you have high ping
-Gui, Add, Text, x380 y360, If you cant load or save settings, Right click the macro and choose Run as Admin `n( requires AutoHotkey v2 )
+; Mini guide (compact clickable) - visible text removed, info available via the small 'i' buttons
+Gui, Font, s9 c%FontColor%, Segoe UI
+Gui, Add, Button, x360 y40 w16 h16 gInfo1, i
+Gui, Add, Button, x360 y60 w16 h16 gInfo2, i
+Gui, Add, Button, x360 y80 w16 h16 gInfo3, i
+Gui, Add, Button, x360 y120 w16 h16 gInfo4, i
+Gui, Add, Button, x360 y200 w16 h16 gInfo5, i
+Gui, Add, Button, x360 y240 w16 h16 gInfo6, i
+Gui, Add, Button, x360 y280 w16 h16 gInfo7, i
+Gui, Add, Button, x360 y360 w16 h16 gInfo8, i
+Gui, Font, s10 c%FontColor%, Segoe UI
 
 ; Shake Settings Tab =====================================
 Gui, Tab, Shake Settings
-Gui, Add, Text, x30 y40, Navigation Key:
-Gui, Add, Edit, x190 y40 w100 vNavigationKey, \
-Gui, Add, Text, x30 y80, Shake Mode:
-Gui, Add, ComboBox, x190 y80 w100 vShakeMode, Click|Navigation
-Gui, Add, Text, x30 y120, Shake Failsafe (sec):
-Gui, Add, Edit, x190 y120 w100 vShakeFailsafe, 20
+Gui, Add, Text, x30 y65, Navigation Key:
+Gui, Add, Edit, x190 y65 w100 vNavigationKey, \
+Gui, Add, Text, x30 y105, Shake Mode:
+Gui, Add, ComboBox, x190 y105 w100 vShakeMode, Click|Navigation
+Gui, Add, Text, x30 y145, Shake Failsafe (sec):
+Gui, Add, Edit, x190 y145 w100 vShakeFailsafe, 20
 
 ; Click set
-Gui, Add, Text, x30 y160, Click Shake Color Tolerance:
-Gui, Add, Edit, x190 y160 w100 vClickShakeColorTolerance, 3
-Gui, Add, Text, x30 y200, Click Scan Delay (ms):
-Gui, Add, Edit, x190 y200 w100 vClickScanDelay, 10
-Gui, Add, Text, x380 y200, Adjust the Click Speed
+Gui, Add, Text, x30 y185, Click Shake Color Tolerance:
+Gui, Add, Edit, x190 y185 w100 vClickShakeColorTolerance, 3
+Gui, Add, Text, x30 y225, Click Scan Delay (ms):
+Gui, Add, Edit, x190 y225 w100 vClickScanDelay, 10
+Gui, Add, Text, x380 y225, Adjust the Click Speed
 
 ; Nav set
-Gui, Add, Text, x30 y240, Navigation Spam Delay (ms):
-Gui, Add, Edit, x190 y240 w100 vNavigationSpamDelay, 10
-Gui, Add, Text, x380 y240, Adjust the Navigation spam speed
+Gui, Add, Text, x30 y265, Navigation Spam Delay (ms):
+Gui, Add, Edit, x190 y265 w100 vNavigationSpamDelay, 10
+Gui, Add, Text, x380 y265, Adjust the Navigation spam speed
 
-Gui, Add, Text, x380 y40, Check your Navigation Key in the Roblox settings
-Gui, Add, Text, x380 y80, Click for for mouse clicks | Navigation for Navigation spam
-Gui, Add, Text, x380 y120, How many seconds before restarting if failed to shake
-Gui, Add, Text, x30 y300, If you already set it up, to ensure Shake Mode works:
-Gui, Add, Text, x30 y320, Load settings -> Save settings -> Start Macro
+Gui, Add, Text, x380 y65, Check your Navigation Key in the Roblox settings
+Gui, Add, Text, x380 y105, Click for for mouse clicks | Navigation for Navigation spam
+Gui, Add, Text, x380 y145, How many seconds before restarting if failed to shake
+Gui, Add, Text, x30 y325, If you already set it up, to ensure Shake Mode works:
+Gui, Add, Text, x30 y345, Load settings -> Save settings -> Start Macro
 
 ; Minigame Settings Tab	============================
 Gui, Tab, Minigame Settings
 
 ; Bar calc
 Gui, Font, Bold
-Gui, Add, Text, x30 y40, !!!!! Check the Control stat of your Rod !!!!!
+Gui, Add, Text, x30 y65, !!!!! Check the Control stat of your Rod !!!!!
 Gui, Font, Norm
-Gui, Add, Text, x30 y60, Control Value:
-Gui, Add, Edit, x180 y60 w100 vControl, 0
-Gui, Add, Text, x30 y100, Fish Bar Tolerance:
-Gui, Add, Edit, x180 y100 w100 vFishBarColorTolerance, 5
-Gui, Add, Text, x30 y140, White Bar Tolerance:
-Gui, Add, Edit, x180 y140 w100 vWhiteBarColorTolerance, 15
-Gui, Add, Text, x30 y180, Arrow Tolerance:
-Gui, Add, Edit, x180 y180 w100 vArrowColorTolerance, 6
+Gui, Add, Text, x30 y85, Control Value:
+Gui, Add, Edit, x180 y85 w100 vControl, 0
+Gui, Add, Text, x30 y125, Fish Bar Tolerance:
+Gui, Add, Edit, x180 y125 w100 vFishBarColorTolerance, 5
+Gui, Add, Text, x30 y165, White Bar Tolerance:
+Gui, Add, Edit, x180 y165 w100 vWhiteBarColorTolerance, 15
+Gui, Add, Text, x30 y205, Arrow Tolerance:
+Gui, Add, Edit, x180 y205 w100 vArrowColorTolerance, 6
 
 ; Bar control
-Gui, Add, Text, x30 y220, Scan Delay:
-Gui, Add, Edit, x180 y220 w100 vScanDelay, 10
-Gui, Add, Text, x30 y260, Side Bar Ratio:
-Gui, Add, Edit, x180 y260 w100 vSideBarRatio, 0.7
-Gui, Add, Text, x30 y300, Side Bar Delay:
-Gui, Add, Edit, x180 y300 w100 vSideDelay, 400
+Gui, Add, Text, x30 y245, Scan Delay:
+Gui, Add, Edit, x180 y245 w100 vScanDelay, 10
+Gui, Add, Text, x30 y285, Side Bar Ratio:
+Gui, Add, Edit, x180 y285 w100 vSideBarRatio, 0.7
+Gui, Add, Text, x30 y325, Side Bar Delay:
+Gui, Add, Edit, x180 y325 w100 vSideDelay, 400
 
-Gui, Add, Text, x30 y340, Minigame Settings Guide
-Gui, Add, Text, x30 y360, Make your own config or use others
+Gui, Add, Text, x30 y365, Minigame Settings Guide
+Gui, Add, Text, x30 y385, Make your own config or use others
 
 ; Stable
-Gui, Add, Text, x400 y40, Stable Right Multiplier:
-Gui, Add, Edit, x550 y40 w100 vStableRightMultiplier, 2.36
-Gui, Add, Text, x400 y80, Stable Right Division:
-Gui, Add, Edit, x550 y80 w100 vStableRightDivision, 1.55
-Gui, Add, Text, x400 y120, Stable Left Multiplier:
-Gui, Add, Edit, x550 y120 w100 vStableLeftMultiplier, 1.211
-Gui, Add, Text, x400 y160, Stable Left Division:
-Gui, Add, Edit, x550 y160 w100 vStableLeftDivision, 1.12
+Gui, Add, Text, x400 y65, Stable Right Multiplier:
+Gui, Add, Edit, x550 y65 w100 vStableRightMultiplier, 2.36
+Gui, Add, Text, x400 y105, Stable Right Division:
+Gui, Add, Edit, x550 y105 w100 vStableRightDivision, 1.55
+Gui, Add, Text, x400 y145, Stable Left Multiplier:
+Gui, Add, Edit, x550 y145 w100 vStableLeftMultiplier, 1.211
+Gui, Add, Text, x400 y185, Stable Left Division:
+Gui, Add, Edit, x550 y185 w100 vStableLeftDivision, 1.12
 
 ; Unstable
-Gui, Add, Text, x400 y200, Unstable Right Multiplier:
-Gui, Add, Edit, x550 y200 w100 vUnstableRightMultiplier, 2.665
-Gui, Add, Text, x400 y240, Unstable Right Division:
-Gui, Add, Edit, x550 y240 w100 vUnstableRightDivision, 1.5
-Gui, Add, Text, x400 y280, Unstable Left Multiplier:
-Gui, Add, Edit, x550 y280 w100 vUnstableLeftMultiplier, 2.19
-Gui, Add, Text, x400 y320, Unstable Left Division:
-Gui, Add, Edit, x550 y320 w100 vUnstableLeftDivision, 1
+Gui, Add, Text, x400 y210, Unstable Right Multiplier:
+Gui, Add, Edit, x550 y210 w100 vUnstableRightMultiplier, 2.665
+Gui, Add, Text, x400 y250, Unstable Right Division:
+Gui, Add, Edit, x550 y250 w100 vUnstableRightDivision, 1.5
+Gui, Add, Text, x400 y290, Unstable Left Multiplier:
+Gui, Add, Edit, x550 y290 w100 vUnstableLeftMultiplier, 2.19
+Gui, Add, Text, x400 y330, Unstable Left Division:
+Gui, Add, Edit, x550 y330 w100 vUnstableLeftDivision, 1
 
 ; Ankle
 Gui, Add, Text, x400 y360, Right Ankle Break Multiplier:
@@ -137,25 +162,175 @@ Gui, Add, Edit, x550 y400 w100 vLeftAnkleBreakMultiplier, 0.45
 
 ; Buttons
 Gui, Tab
-Gui, Add, Button, x200 y500 w80 h30 gSaveSettings, Save settings
-Gui, Add, Button, x300 y500 w80 h30 gLoadSettings, Load settings
-Gui, Add, Button, x400 y500 w80 h30 gExitScript, Exit
-Gui, Add, Button, x500 y500 w80 h30 gLaunch, Start Macro
+Gui, Add, Button, x200 y460 w80 h30 gSaveSettings, Save settings
+Gui, Add, Button, x300 y460 w80 h30 gLoadSettings, Load settings
+Gui, Add, Button, x400 y460 w80 h30 gExitScript, Exit
+Gui, Add, Button, x500 y460 w80 h30 gLaunch, Start Macro
+Gui, Add, Button, x600 y460 w80 h30 gToggleDarkMode vDarkModeBtn, Dark Mode
 Gui, Add, Text, x30 y440 , Configs list
-Gui, Add, ComboBox, x30 y460 w100 h80 vDropItem gSelectItem
-Gui, Show,,
+Gui, Add, Edit, x30 y460 w75 vCfgSearch gCfgSearch, ; search box for configs
+; Use a DropDownList so users can open and scroll the whole list; width reduced to ~50%
+Gui, Add, DropDownList, x110 y460 w75 vDropItem gSelectItem
+Gui, Show,, Fich macro V12.5 Remasterd by SeneX
 
+; Update Dark Mode button label to reflect current state (show action)
+if (DarkMode)
+	GuiControl,, DarkModeBtn, Light Mode
+else
+	GuiControl,, DarkModeBtn, Dark Mode
+
+; Build a pipe-separated list of config names and set the dropdown once (prevents odd incremental behavior)
+; Build master list of configs (used for filtering) — avoid duplicates
+masterCfgList := []
+cfgSeen := {}
 Loop, %A_ScriptDir%\*.ini
 {
-    StringTrimRight, fileName, A_LoopFileName, 4
-    GuiControl,, DropItem, %fileName%
+	StringTrimRight, fileName, A_LoopFileName, 4
+	if (cfgSeen[fileName])
+		continue
+	cfgSeen[fileName] := true
+	masterCfgList.Push(fileName)
 }
+; initially populate dropdown with all items
+gosub, FilterConfigs
 
-SettingsFileName := A_ScriptDir . "\" . SettingsFileName . ".ini"
+; start hover checker for help buttons
+SetTimer, CheckHelpHover, 200
+
+; Ensure SettingsFileName has a sane default so writes go to a real file
+SettingsFileName := A_ScriptDir . "\default.ini"
 
 SelectItem:
     Gui, Submit, NoHide
     SettingsFileName := A_ScriptDir . "\" . DropItem . ".ini"
+Return
+
+HelpLower:
+	Tooltip, Lowers in-game graphics automatically to improve performance., 200, 200
+	SetTimer, ClearTooltip, -1500
+Return
+
+HelpZoom:
+	Tooltip, Zooms the camera in to improve detection of targets., 200, 200
+	SetTimer, ClearTooltip, -1500
+Return
+
+HelpEnableCam:
+	Tooltip, Enables camera-mode automatically before starting the macro., 200, 200
+	SetTimer, ClearTooltip, -1500
+Return
+
+HelpLookDown:
+	Tooltip, Automatically looks down to position the bobber in view., 200, 200
+	SetTimer, ClearTooltip, -1500
+Return
+
+HelpBlur:
+	Tooltip, Toggles blur effect handling (used to open certain menus)., 200, 200
+	SetTimer, ClearTooltip, -1500
+Return
+
+Info1:
+	MsgBox, 0x40000, Info, Join White Sands Macros, 1
+Return
+
+Info2:
+	MsgBox, 0x40000, Info, Check out the pre-setup before you begin (Only available in the discord above), 1
+Return
+
+Info3:
+	MsgBox, 0x40000, Info, If its your first time, please check all the boxes, 1
+Return
+
+Info4:
+	MsgBox, 0x40000, Info, Click the camera icon top right in case it doesnt work, 1
+Return
+
+Info5:
+	MsgBox, 0x40000, Info, If youre wondering, this will open the menu after enabling camera mode, 1
+Return
+
+Info6:
+	MsgBox, 0x40000, Info, Adjust wait time before restarting the macro, 1
+Return
+
+Info7:
+	MsgBox, 0x40000, Info, Increase the Hold duration if you have high ping, 1
+Return
+
+Info8:
+	MsgBox, 0x40000, Info, If you cant load or save settings, Right click the macro and choose Run as Admin`n( requires AutoHotkey v2 ), 1
+Return
+
+ClearTooltip:
+	Tooltip
+Return
+
+CheckHelpHover:
+	; Check mouse over each help button and show tooltip accordingly
+	MouseGetPos, mx, my
+	; check each button by getting its position
+	ControlGetPos, x, y, w, h, Button3, A
+	; Note: the control names vary; we'll test by approximate areas used earlier
+	; Lower help approx at x270 y50
+	if (mx >= 270 && mx <= 290 && my >= 50 && my <= 68) {
+		Tooltip, Lowers in-game graphics automatically to improve performance., %mx%, %my%
+		return
+	}
+	if (mx >= 270 && mx <= 290 && my >= 90 && my <= 108) {
+		Tooltip, Zooms the camera in to improve detection of targets., %mx%, %my%
+		return
+	}
+	if (mx >= 270 && mx <= 290 && my >= 130 && my <= 148) {
+		Tooltip, Enables camera-mode automatically before starting the macro., %mx%, %my%
+		return
+	}
+	if (mx >= 270 && mx <= 290 && my >= 170 && my <= 188) {
+		Tooltip, Automatically looks down to position the bobber in view., %mx%, %my%
+		return
+	}
+	if (mx >= 270 && mx <= 290 && my >= 210 && my <= 228) {
+		Tooltip, Toggles blur effect handling (used to open certain menus)., %mx%, %my%
+		return
+	}
+	Tooltip
+Return
+
+; Called when search box changes (gCfgSearch) — re-populates the dropdown with filtered items
+CfgSearch:
+	Gui, Submit, NoHide
+	gosub, FilterConfigs
+Return
+
+FilterConfigs:
+	; Build a pipe-separated string of items that contain the search substring (case-insensitive)
+	search := CfgSearch
+	if (search = "")
+		search := ""
+	StringLower, lowerSearch, search
+	out := ""
+	for index, name in masterCfgList
+	{
+		StringLower, lowerName, name
+		if (lowerSearch = "" || InStr(lowerName, lowerSearch))
+		{
+			out := (out = "" ? name : out "|" name)
+		}
+	}
+	if (out = "")
+		out := "(no matches)"
+	GuiControl,, DropItem, %out%
+	; if there are matches, open the dropdown so user can scroll immediately
+	if (out != "(no matches)") {
+		; give GUI a moment to update, then send dropdown open to that control
+		SetTimer, OpenCfgDropdown, -80
+	}
+Return
+
+OpenCfgDropdown:
+	; Focus the dropdown and open it
+	GuiControl, Focus, DropItem
+	Send, {Down}
 Return
 
 
@@ -215,6 +390,39 @@ SaveSettings:
 	Gui, -AlwaysOnTop
 	MsgBox, 0x40040, Saved, Settings saved successfully as %SettingsFileName% !, 0.8
 	Gui, +AlwaysOnTop
+Return
+
+; Toggle Dark Mode
+ToggleDarkMode:
+	DarkMode := !DarkMode
+	; persist choice to the currently selected settings file (if set)
+	if (SettingsFileName != "") {
+		IniWrite, %DarkMode%, %SettingsFileName%, General, DarkMode
+	}
+	; always write to default.ini so startup (which reads default.ini) reflects the choice
+	IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
+	; reload script so all controls are recreated with the correct font color
+	Reload
+Return
+
+; Apply theme based on DarkMode
+ApplyTheme:
+	if (DarkMode)
+	{
+		Gui, Color, 0x1E1E1E
+	FontColor := "FFFFFF"
+	Gui, Font, s12 c%FontColor%, Segoe UI
+	Gui, Font, s10 c%FontColor%, Segoe UI
+		GuiControl,, DarkModeBtn, Light Mode
+	}
+	else
+	{
+		Gui, Color, 0xF5F5F5
+	FontColor := "000000"
+	Gui, Font, s12 c%FontColor%, Segoe UI
+	Gui, Font, s10 c%FontColor%, Segoe UI
+		GuiControl,, DarkModeBtn, Dark Mode
+	}
 Return
 
 ; Load settings
@@ -306,7 +514,17 @@ LoadSettings:
 
 	GuiControl,, RightAnkleBreakMultiplier, %lRightAnkleBreakMultiplier%
 	GuiControl,, LeftAnkleBreakMultiplier, %lLeftAnkleBreakMultiplier%
-	
+
+	; read theme and apply if present
+	IniRead, lDarkMode, %SettingsFileName%, General, DarkMode
+	if (lDarkMode != "") {
+		DarkMode := lDarkMode
+		gosub, ApplyTheme
+	}
+
+	; Reapply font color to controls so text updates immediately
+	Gui, Font, s10 c%FontColor%, Segoe UI
+
 	; Done
 		Gui, -AlwaysOnTop
 		MsgBox, 0x40040, Loaded, Loaded %SettingsFileName% !, 0.8
@@ -559,9 +777,10 @@ return
 ;====================================================================================================;
 
 #IfWinNotActive, ahk_class AutoHotkeyGUI
-$o::Reload
-$m::ExitApp
-$p:: goto StartCalculation
+; Disabled annoying global shortcuts per request
+; $o::Reload
+; $m::ExitApp
+; $p:: goto StartCalculation
 #IfWinNotActive
 
 StartCalculation:
