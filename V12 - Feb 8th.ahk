@@ -8,12 +8,16 @@ CoordMode, Tooltip, Relative
 CoordMode, Pixel, Relative
 CoordMode, Mouse, Relative
 
-;		GUI		==============================================================================================================;
+; 		GUI		==============================================================================================================;
 
 Gui,+AlwaysOnTop
 Gui, +Resize +MinSize
-Gui, Add, Tab2, w800 h550, General Settings|Shake Settings|Minigame Settings
-Gui, Color, 0xFFFFFF
+Gui, Margin, 12, 12
+Gui, Color, 0xF5F5F5
+Gui, Font, s12, Segoe UI
+Gui, Add, Text, x0 y6 w800 Center, Fisch Macro V12 - Remasterd
+Gui, Font, s10, Segoe UI
+Gui, Add, Tab2, x10 y40 w780 h500, General Settings|Shake Settings|Minigame Settings
 
 ; General Settings Tab ==============================
 Gui, Tab, General Settings
@@ -41,9 +45,9 @@ Gui, Add, Text, x380 y300, Seraphic Rod Check:
 Gui, Add, Checkbox, x500 y300 vSera, Enable
 Gui, Add, Text, x380 y320, Only Enable if youre using Seraphic Rod
 
-; Mini guide
-Gui, Add, Link, x380 y40, <a href="https://discord.com/invite/mangos"> Join White Sands Macros</a>
-Gui, Add, Link, x380 y60, <a href="https://discord.com/channels/1322430437536170037/1323672910640185415">Check out the pre-setup before you begin (Only available in the discord above)</a>
+; Mini guide (links removed)
+Gui, Add, Text, x380 y40, Join White Sands Macros
+Gui, Add, Text, x380 y60, Check out the pre-setup before you begin (Only available in the discord above)
 Gui, Add, Text, x380 y80, If its your first time, please check all the boxes
 Gui, Add, Text, x380 y120, Click the camera icon top right in case it doesnt work
 Gui, Add, Text, x380 y200, If youre wondering, this will open the menu after enabling camera mode
@@ -102,7 +106,7 @@ Gui, Add, Edit, x180 y260 w100 vSideBarRatio, 0.7
 Gui, Add, Text, x30 y300, Side Bar Delay:
 Gui, Add, Edit, x180 y300 w100 vSideDelay, 400
 
-Gui, Add, Link, x30 y340, <a href="https://docs.google.com/document/d/1V2ahBQhzkFwZgpPdOJz0qpVSXPwTyQ92uIGbeyUILac/edit?usp=sharing">Minigame Settings Guide</a>
+Gui, Add, Text, x30 y340, Minigame Settings Guide
 Gui, Add, Text, x30 y360, Make your own config or use others
 
 ; Stable
@@ -459,7 +463,7 @@ Tooltip20 := (WindowHeight/2)+(20*10)
 
 SplitPath, SettingsFileName, FileNameNoExt
 StringTrimRight, FileNameNoExt, FileNameNoExt, 4
-tooltip, Made By AsphaltCake, %TooltipX%, %Tooltip1%, 1
+tooltip, Made By AsphaltCake - this is remasterd version, %TooltipX%, %Tooltip1%, 1
 tooltip, Fisch Macro V12 - Config: %FileNameNoExt%, %TooltipX%, %Tooltip2%, 2
 tooltip, Runtime: 0h 0m 0s, %TooltipX%, %Tooltip3%, 3
 
