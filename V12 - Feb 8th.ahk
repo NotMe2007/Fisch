@@ -179,6 +179,9 @@ if (DarkMode)
 else
 	GuiControl,, DarkModeBtn, Dark Mode
 
+; Ensure edit/dropdown text remains black for readability
+gosub, SetEditFonts
+
 ; Build a pipe-separated list of config names and set the dropdown once (prevents odd incremental behavior)
 ; Build master list of configs (used for filtering) — avoid duplicates
 masterCfgList := []
@@ -202,7 +205,26 @@ SettingsFileName := A_ScriptDir . "\default.ini"
 
 SelectItem:
     Gui, Submit, NoHide
-    SettingsFileName := A_ScriptDir . "\" . DropItem . ".ini"
+	; If user picked the special '(no matches)', warn and do nothing
+	if (DropItem = "(no matches)") {
+		MsgBox, 0x40030, Config, No matching configuration to load.
+		Return
+	}
+	if (DropItem = "") {
+		; fall back to default
+		SettingsFileName := A_ScriptDir . "\default.ini"
+	} else {
+		SettingsFileName := A_ScriptDir . "\" . DropItem . ".ini"
+	}
+
+	; Only attempt to load if the file exists
+	if !FileExist(SettingsFileName) {
+		MsgBox, 0x40030, Config, The selected config file does not exist:`n%SettingsFileName%
+		Return
+	}
+
+	; Load and apply the selected config
+	Gosub, LoadSettings
 Return
 
 HelpLower:
@@ -231,35 +253,55 @@ HelpBlur:
 Return
 
 Info1:
-	MsgBox, 0x40000, Info, Join White Sands Macros, 1
+	; Create a small persistent info GUI with clickable labels
+	Gui, Info1: New, +AlwaysOnTop -SysMenu +ToolWindow, Info - Join White Sands Macros
+	Gui, Info1: Font, s10 c%FontColor%, Segoe UI
+	Gui, Info1: Add, Text, x10 y10, Join White Sands Macros
+	Gui, Info1: Add, Text, x10 y30 gOpenRemaster c00AEEF, was remasted by SenX
+	Gui, Info1: Add, Text, x170 y30 gOpenDiscord c00AEEF, https://discord.gg/dHUM2ejQGY
+	Gui, Info1: Add, Button, x10 y60 w60 h22 gCloseInfo1, Close
+	Gui, Info1: Show, AutoSize Center, Info
 Return
 
 Info2:
-	MsgBox, 0x40000, Info, Check out the pre-setup before you begin (Only available in the discord above), 1
+	MsgBox, 0x40000, Info, Check out the pre-setup before you begin (Only available in the discord above)
 Return
 
 Info3:
-	MsgBox, 0x40000, Info, If its your first time, please check all the boxes, 1
+	MsgBox, 0x40000, Info, If its your first time, please check all the boxes
 Return
 
 Info4:
-	MsgBox, 0x40000, Info, Click the camera icon top right in case it doesnt work, 1
+	MsgBox, 0x40000, Info, Click the camera icon top right in case it doesnt work
 Return
 
 Info5:
-	MsgBox, 0x40000, Info, If youre wondering, this will open the menu after enabling camera mode, 1
+	MsgBox, 0x40000, Info, If youre wondering, this will open the menu after enabling camera mode
 Return
 
 Info6:
-	MsgBox, 0x40000, Info, Adjust wait time before restarting the macro, 1
+	MsgBox, 0x40000, Info, Adjust wait time before restarting the macro
 Return
 
 Info7:
-	MsgBox, 0x40000, Info, Increase the Hold duration if you have high ping, 1
+	MsgBox, 0x40000, Info, Increase the Hold duration if you have high ping
 Return
 
 Info8:
-	MsgBox, 0x40000, Info, If you cant load or save settings, Right click the macro and choose Run as Admin`n( requires AutoHotkey v2 ), 1
+	MsgBox, 0x40000, Info, If you cant load or save settings, Right click the macro and choose Run as Admin`n( requires AutoHotkey v2 )
+Return
+
+OpenRemaster:
+	; Open the discord for now (no separate URL was provided for remaster credit)
+	Run, https://discord.gg/dHUM2ejQGY
+Return
+
+OpenDiscord:
+	Run, https://discord.gg/dHUM2ejQGY
+Return
+
+CloseInfo1:
+	Gui, Info1: Destroy
 Return
 
 ClearTooltip:
@@ -423,6 +465,41 @@ ApplyTheme:
 	Gui, Font, s10 c%FontColor%, Segoe UI
 		GuiControl,, DarkModeBtn, Dark Mode
 	}
+
+	; Reapply black text to edit-like controls for readability
+	gosub, SetEditFonts
+	Return
+
+SetEditFonts:
+	; Force edit and dropdown controls' text color to black so they remain visible on dark backgrounds
+	Gui, Font, s10 c000000, Segoe UI
+	GuiControl, Font, RestartDelay
+	GuiControl, Font, HoldRodCastDuration
+	GuiControl, Font, WaitForBobberDelay
+	GuiControl, Font, BaitDelay
+	GuiControl, Font, NavigationKey
+	GuiControl, Font, ShakeFailsafe
+	GuiControl, Font, ClickShakeColorTolerance
+	GuiControl, Font, ClickScanDelay
+	GuiControl, Font, NavigationSpamDelay
+	GuiControl, Font, Control
+	GuiControl, Font, FishBarColorTolerance
+	GuiControl, Font, WhiteBarColorTolerance
+	GuiControl, Font, ArrowColorTolerance
+	GuiControl, Font, ScanDelay
+	GuiControl, Font, SideBarRatio
+	GuiControl, Font, SideDelay
+	GuiControl, Font, StableRightMultiplier
+	GuiControl, Font, StableRightDivision
+	GuiControl, Font, StableLeftMultiplier
+	GuiControl, Font, StableLeftDivision
+	GuiControl, Font, UnstableRightMultiplier
+	GuiControl, Font, UnstableRightDivision
+	GuiControl, Font, UnstableLeftMultiplier
+	GuiControl, Font, UnstableLeftDivision
+	GuiControl, Font, RightAnkleBreakMultiplier
+	GuiControl, Font, LeftAnkleBreakMultiplier
+	Gui, Font, s10 c%FontColor%, Segoe UI
 Return
 
 ; Load settings
@@ -518,8 +595,15 @@ LoadSettings:
 	; read theme and apply if present
 	IniRead, lDarkMode, %SettingsFileName%, General, DarkMode
 	if (lDarkMode != "") {
+		prevDark := DarkMode
 		DarkMode := lDarkMode
-		gosub, ApplyTheme
+		if (DarkMode != prevDark) {
+			; persist chosen theme as default so Reload keeps it and controls are recreated
+			IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
+			Reload
+		} else {
+			gosub, ApplyTheme
+		}
 	}
 
 	; Reapply font color to controls so text updates immediately
@@ -534,7 +618,7 @@ LoadSettings:
 		MsgBox, 0x40030, Loaded, Settings failed to load.
 		Gui, +AlwaysOnTop
 	}
-	goto, SaveSettings
+	; do not auto-save after loading — user should Save manually if desired
 Return
 
 ExitScript:
