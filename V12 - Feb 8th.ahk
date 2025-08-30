@@ -862,9 +862,9 @@ return
 
 #IfWinNotActive, ahk_class AutoHotkeyGUI
 ; Disabled annoying global shortcuts per request
-; $o::Reload
-; $m::ExitApp
-; $p:: goto StartCalculation
+$o::Reload
+$m::ExitApp
+$p:: goto StartCalculation
 #IfWinNotActive
 
 StartCalculation:
