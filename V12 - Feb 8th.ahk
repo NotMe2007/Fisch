@@ -14,7 +14,7 @@ DarkMode := 0
 ; Application/version label (change this string to update the GUI title)
 AppVersion := "V13 Remasterd by SeneX"
 
-; 		GUI		==============================================================================================================;
+; GUI==============================================================================================================;
 
 ; If a saved theme exists in default.ini, load it so controls are created with correct colors
 IniRead, startDarkMode, %A_ScriptDir%\default.ini, General, DarkMode
