@@ -11,6 +11,9 @@ CoordMode, Mouse, Relative
 ; Theme state
 DarkMode := 0
 
+; Application/version label (change this string to update the GUI title)
+AppVersion := "V13 Remasterd by SeneX"
+
 ; 		GUI		==============================================================================================================;
 
 ; If a saved theme exists in default.ini, load it so controls are created with correct colors
@@ -18,7 +21,6 @@ IniRead, startDarkMode, %A_ScriptDir%\default.ini, General, DarkMode
 if (startDarkMode != "")
 	DarkMode := startDarkMode
 
-Gui,+AlwaysOnTop
 Gui, +Resize +MinSize
 Gui, Margin, 12, 12
 if (DarkMode)
@@ -85,7 +87,8 @@ Gui, Tab, Shake Settings
 Gui, Add, Text, x30 y65, Navigation Key:
 Gui, Add, Edit, x190 y65 w100 vNavigationKey, \
 Gui, Add, Text, x30 y105, Shake Mode:
-Gui, Add, ComboBox, x190 y105 w100 vShakeMode, Click|Navigation
+; Use DropDownList so it's non-editable and matches the configs dropdown behavior
+Gui, Add, DropDownList, x190 y105 w100 vShakeMode, Click|Navigation
 Gui, Add, Text, x30 y145, Shake Failsafe (sec):
 Gui, Add, Edit, x190 y145 w100 vShakeFailsafe, 20
 
@@ -168,10 +171,11 @@ Gui, Add, Button, x400 y460 w80 h30 gExitScript, Exit
 Gui, Add, Button, x500 y460 w80 h30 gLaunch, Start Macro
 Gui, Add, Button, x600 y460 w80 h30 gToggleDarkMode vDarkModeBtn, Dark Mode
 Gui, Add, Text, x30 y440 , Configs list
-Gui, Add, Edit, x30 y460 w75 vCfgSearch gCfgSearch, ; search box for configs
-; Use a DropDownList so users can open and scroll the whole list; width reduced to ~50%
-Gui, Add, DropDownList, x110 y460 w75 vDropItem gSelectItem
-Gui, Show,, Fich macro V12.5 Remasterd by SeneX
+; Remove the search box and place the configs dropdown where the search box was.
+; Users must pick from the dropdown (no incremental search) to change configs.
+Gui, Add, DropDownList, x30 y460 w155 vDropItem gSelectItem
+Gui, Show,, Fisch macro %AppVersion%
+Gui, +AlwaysOnTop
 
 ; Update Dark Mode button label to reflect current state (show action)
 if (DarkMode)
@@ -182,20 +186,41 @@ else
 ; Ensure edit/dropdown text remains black for readability
 gosub, SetEditFonts
 
-; Build a pipe-separated list of config names and set the dropdown once (prevents odd incremental behavior)
-; Build master list of configs (used for filtering) — avoid duplicates
+; Build a pipe-separated list of config names from the `Configs` folder and set the dropdown once.
 masterCfgList := []
 cfgSeen := {}
-Loop, %A_ScriptDir%\*.ini
+Loop, %A_ScriptDir%\Configs\*.ini
 {
 	StringTrimRight, fileName, A_LoopFileName, 4
+	; skip empty or invalid names
+	if (fileName = "" || fileName = ".")
+		continue
 	if (cfgSeen[fileName])
 		continue
 	cfgSeen[fileName] := true
 	masterCfgList.Push(fileName)
 }
-; initially populate dropdown with all items
-gosub, FilterConfigs
+; populate dropdown with all items (no search/filtering)
+out := ""
+for index, name in masterCfgList
+	out := (out = "" ? name : out "|" name)
+if (out = "")
+	out := "(no configs)"
+GuiControl,, DropItem, %out%
+
+; Restore previously selected config if it exists
+IniRead, savedConfig, %A_ScriptDir%\default.ini, General, CurrentConfig
+if (savedConfig != "" && savedConfig != "ERROR") {
+	for index, configName in masterCfgList {
+		if (configName = savedConfig) {
+			GuiControl, Choose, DropItem, %savedConfig%
+			DropItem := savedConfig
+			SettingsFileName := A_ScriptDir . "\Configs\" . savedConfig . ".ini"
+			Gosub, LoadSettings
+			break
+		}
+	}
+}
 
 ; start hover checker for help buttons
 SetTimer, CheckHelpHover, 200
@@ -203,28 +228,36 @@ SetTimer, CheckHelpHover, 200
 ; Ensure SettingsFileName has a sane default so writes go to a real file
 SettingsFileName := A_ScriptDir . "\default.ini"
 
+; Load default settings on startup only if no config was restored
+if (DropItem = "") {
+    Gosub, LoadSettings
+}
+
 SelectItem:
     Gui, Submit, NoHide
 	; If user picked the special '(no matches)', warn and do nothing
 	if (DropItem = "(no matches)") {
-		MsgBox, 0x40030, Config, No matching configuration to load.
 		Return
 	}
 	if (DropItem = "") {
 		; fall back to default
 		SettingsFileName := A_ScriptDir . "\default.ini"
 	} else {
-		SettingsFileName := A_ScriptDir . "\" . DropItem . ".ini"
+		; load from Configs subfolder
+		SettingsFileName := A_ScriptDir . "\Configs\" . DropItem . ".ini"
 	}
 
 	; Only attempt to load if the file exists
 	if !FileExist(SettingsFileName) {
-		MsgBox, 0x40030, Config, The selected config file does not exist:`n%SettingsFileName%
 		Return
 	}
 
 	; Load and apply the selected config
 	Gosub, LoadSettings
+	; ensure dropdown shows the current selection
+	GuiControl, Choose, DropItem, %DropItem%
+	
+	; silent success (no popup)
 Return
 
 HelpLower:
@@ -264,31 +297,31 @@ Info1:
 Return
 
 Info2:
-	MsgBox, 0x40000, Info, Check out the pre-setup before you begin (Only available in the discord above)
+	; silent info
 Return
 
 Info3:
-	MsgBox, 0x40000, Info, If its your first time, please check all the boxes
+	; silent info
 Return
 
 Info4:
-	MsgBox, 0x40000, Info, Click the camera icon top right in case it doesnt work
+	; silent info
 Return
 
 Info5:
-	MsgBox, 0x40000, Info, If youre wondering, this will open the menu after enabling camera mode
+	; silent info
 Return
 
 Info6:
-	MsgBox, 0x40000, Info, Adjust wait time before restarting the macro
+	; silent info
 Return
 
 Info7:
-	MsgBox, 0x40000, Info, Increase the Hold duration if you have high ping
+	; silent info
 Return
 
 Info8:
-	MsgBox, 0x40000, Info, If you cant load or save settings, Right click the macro and choose Run as Admin`n( requires AutoHotkey v2 )
+	; silent info
 Return
 
 OpenRemaster:
@@ -338,51 +371,16 @@ CheckHelpHover:
 	Tooltip
 Return
 
-; Called when search box changes (gCfgSearch) — re-populates the dropdown with filtered items
-CfgSearch:
-	Gui, Submit, NoHide
-	gosub, FilterConfigs
-Return
-
-FilterConfigs:
-	; Build a pipe-separated string of items that contain the search substring (case-insensitive)
-	search := CfgSearch
-	if (search = "")
-		search := ""
-	StringLower, lowerSearch, search
-	out := ""
-	for index, name in masterCfgList
-	{
-		StringLower, lowerName, name
-		if (lowerSearch = "" || InStr(lowerName, lowerSearch))
-		{
-			out := (out = "" ? name : out "|" name)
-		}
-	}
-	if (out = "")
-		out := "(no matches)"
-	GuiControl,, DropItem, %out%
-	; if there are matches, open the dropdown so user can scroll immediately
-	if (out != "(no matches)") {
-		; give GUI a moment to update, then send dropdown open to that control
-		SetTimer, OpenCfgDropdown, -80
-	}
-Return
-
-OpenCfgDropdown:
-	; Focus the dropdown and open it
-	GuiControl, Focus, DropItem
-	Send, {Down}
-Return
+; Search/filtering removed — users must pick from dropdown to change configs
 
 
 ; Save settings
 SaveSettings:
 	Gui, Submit, NoHide
-    if (DropItem = "")
-        SettingsFileName := A_ScriptDir . "\default.ini"
-    else
-        SettingsFileName := A_ScriptDir . "\" . DropItem . ".ini"
+	if (DropItem = "")
+		SettingsFileName := A_ScriptDir . "\default.ini"
+	else
+		SettingsFileName := A_ScriptDir . "\Configs\" . DropItem . ".ini"
     
     FileAppend, , %SettingsFileName%  ; Create the file if it doesn't exist
 
@@ -428,9 +426,15 @@ SaveSettings:
 	IniWrite, %RightAnkleBreakMultiplier%, %SettingsFileName%, Minigame, RightAnkleBreakMultiplier
     IniWrite, %LeftAnkleBreakMultiplier%, %SettingsFileName%, Minigame, LeftAnkleBreakMultiplier
 	
-    ; Done
+    ; Save current config name to default.ini for persistence across reloads
+    if (DropItem != "") {
+        IniWrite, %DropItem%, %A_ScriptDir%\default.ini, General, CurrentConfig
+    } else {
+        IniWrite, default, %A_ScriptDir%\default.ini, General, CurrentConfig
+    }
+	
+	; Done (silent)
 	Gui, -AlwaysOnTop
-	MsgBox, 0x40040, Saved, Settings saved successfully as %SettingsFileName% !, 0.8
 	Gui, +AlwaysOnTop
 Return
 
@@ -443,8 +447,8 @@ ToggleDarkMode:
 	}
 	; always write to default.ini so startup (which reads default.ini) reflects the choice
 	IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
-	; reload script so all controls are recreated with the correct font color
-	Reload
+	; apply theme immediately without restarting
+	gosub, ApplyTheme
 Return
 
 ; Apply theme based on DarkMode
@@ -499,6 +503,8 @@ SetEditFonts:
 	GuiControl, Font, UnstableLeftDivision
 	GuiControl, Font, RightAnkleBreakMultiplier
 	GuiControl, Font, LeftAnkleBreakMultiplier
+	GuiControl, Font, DropItem
+	GuiControl, Font, ShakeMode
 	Gui, Font, s10 c%FontColor%, Segoe UI
 Return
 
@@ -592,30 +598,25 @@ LoadSettings:
 	GuiControl,, RightAnkleBreakMultiplier, %lRightAnkleBreakMultiplier%
 	GuiControl,, LeftAnkleBreakMultiplier, %lLeftAnkleBreakMultiplier%
 
-	; read theme and apply if present
+	; read theme and apply if present (apply dynamically instead of reloading GUI)
 	IniRead, lDarkMode, %SettingsFileName%, General, DarkMode
 	if (lDarkMode != "") {
 		prevDark := DarkMode
 		DarkMode := lDarkMode
-		if (DarkMode != prevDark) {
-			; persist chosen theme as default so Reload keeps it and controls are recreated
-			IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
-			Reload
-		} else {
-			gosub, ApplyTheme
-		}
+		; persist chosen theme so next startup uses it
+		IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
+		; apply theme in-place without restarting the script
+		gosub, ApplyTheme
 	}
 
 	; Reapply font color to controls so text updates immediately
 	Gui, Font, s10 c%FontColor%, Segoe UI
 
 	; Done
-		Gui, -AlwaysOnTop
-		MsgBox, 0x40040, Loaded, Loaded %SettingsFileName% !, 0.8
-		Gui, +AlwaysOnTop
+			; Loaded (silent)
+			Gui, +AlwaysOnTop
 	} else {
-		Gui, -AlwaysOnTop
-		MsgBox, 0x40030, Loaded, Settings failed to load.
+		; Failed to load (silent)
 		Gui, +AlwaysOnTop
 	}
 	; do not auto-save after loading — user should Save manually if desired
@@ -630,6 +631,7 @@ ExitApp
 
 ;====================================================================================================;
 Launch:
+Gui, -AlwaysOnTop
 Gui, Hide
 	IniRead, lAutoLowerGraphics, %SettingsFileName%, General, AutoLowerGraphics
 	IniRead, lAutoZoomInCamera, %SettingsFileName%, General, AutoZoomInCamera
@@ -676,7 +678,7 @@ Gui, Hide
 	
 if (ShakeMode != "Navigation" and ShakeMode != "Click")
 	{
-	msgbox, Shake Mode wasnt saved, remember to Save before you Start
+	; Silent exit if shake mode invalid
 	exitapp
 	}
 ;====================================================================================================;
@@ -684,16 +686,19 @@ if (ShakeMode != "Navigation" and ShakeMode != "Click")
 WinActivate, Roblox
 if WinActive("ahk_exe RobloxPlayerBeta.exe") || WinActive("ahk_exe eurotruck2.exe")
 	{
-	WinMaximize, Roblox
+	; Resize Roblox to standard 1920x1080 resolution for proper macro functionality
+	WinMove, Roblox,, 0, 0, 1920, 1080
+	Sleep, 500  ; Wait for window to resize
+	WinActivate, Roblox
 	}
 else
 	{
-	MsgBox, 0x40030, Error, Make sure you are using the Roblox Player (not from Microsoft)
+	; Silent exit if required app not active
 	exitapp
 	}
 
 if (A_ScreenDPI != 96) {
-    MsgBox, 0x40030, Error, Display Scale is not set to 100.`nPress the Windows key > Find "Change the resolution of the display" > Set the Scale to 100
+	; Silent exit when DPI not 96
 	exitapp
 }
 
@@ -860,8 +865,15 @@ return
 
 ;====================================================================================================;
 
+#IfWinActive, ahk_class AutoHotkeyGUI
+; Hotkeys disabled when GUI is active
+$o::return
+$m::return  
+$p::return
+#IfWinActive
+
 #IfWinNotActive, ahk_class AutoHotkeyGUI
-; Disabled annoying global shortcuts per request
+; Hotkeys enabled when GUI is not active (macro running)
 $o::Reload
 $m::ExitApp
 $p:: goto StartCalculation
