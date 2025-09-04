@@ -26,7 +26,31 @@ IniReadVar(file, section, key, default := "") {
 }
 
 IniWriteVar(file, section, key, value) {
-	return IniWrite(file, section, key, value)
+	; Ensure target directory exists and gracefully handle permission errors.
+	try {
+		; extract directory from path
+		dir := RegExReplace(file, "\\[^\\]+$", "")
+		if (dir != "" && !FileExist(dir))
+			DirCreate(dir)
+	} catch {
+		; ignore dir creation errors, we'll handle write error below
+	}
+
+	try {
+		IniWrite(file, section, key, value)
+		return true
+	} catch {
+		; Fallback: try writing to script root default.ini
+		fallback := A_ScriptDir "\\default.ini"
+		try {
+			IniWrite(fallback, section, key, value)
+			MsgBox("Warning: Unable to write to '" file "'. Settings saved to '" fallback "' instead.", "Warning", "Icon!")
+			return true
+		} catch {
+			MsgBox("Error: Unable to save settings to '" file "' or fallback '" fallback "'. Check folder permissions or run the script as an administrator.", "Error", "Icon!")
+			return false
+		}
+	}
 }
 
 ; GUI==============================================================================================================;
@@ -205,7 +229,8 @@ if (DarkMode)
 else
     BtnToggleDark.Text := "Light Mode"
 MainGui.Add("Text", "x30 y440", "Config:")
-DropItem := MainGui.Add("DropDownList", "x30 y460 w80 h30 vDropItem")
+; Make dropdown show multiple rows when expanded (r7) and closed height compact (h22)
+DropItem := MainGui.Add("DropDownList", "x30 y460 w70 h22 r7 vDropItem")
 DropItem.OnEvent("Change", SelectItem)
 
 SetEditFonts()  ; Apply theme colors to all controls
@@ -219,6 +244,9 @@ SetEditFonts()
 ; Build master list of config names from Configs/ and root; keep "default" separate
 masterCfgList := []
 tmpList := []
+
+; Ensure SettingsFileName has a sensible default early so it's safe to reference
+SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
 
 ; Collect from Configs folder first
 Loop Files, A_ScriptDir "\\Configs\\*.ini" {
@@ -344,14 +372,29 @@ SelectItem(ctrl, eventInfo)
 
 FilterConfigs()
 {
-	global DropItem, masterCfgList
-	
-	DropItem.Delete()
+	global DropItem, masterCfgList, MainGui
+
+	; Build the list starting with default
 	local configList := ["default"]
 	for name in masterCfgList {
 		configList.Push(name)
 	}
-	DropItem.Add(configList)
+
+	; Try to remove existing dropdown control (if present) and recreate it with items
+	try {
+		DropItem.Delete()
+	} catch {
+		; ignore if control doesn't exist yet
+	}
+
+	; Recreate dropdown so items reliably populate and sizing can be controlled
+	; NOTE: do not use the vDropItem option here to avoid "control already exists" when re-adding
+	; Use r7 so expanded list is scrollable when many items; keep closed height compact
+	DropItem := MainGui.Add("DropDownList", "x30 y460 w70 h22 r7", configList)
+	DropItem.OnEvent("Change", SelectItem)
+
+	; Re-apply theme/fonts to the newly created control
+	SetEditFonts()
 }
 
 OpenCfgDropdown()
@@ -566,8 +609,10 @@ SetEditFonts() {
 	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
 	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
 	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier, DropItem, ShakeMode, FontColor, DarkMode
-	; Use appropriate text color based on theme - black text for edit controls for visibility
-	local fontSpec := "s10 c000000 Segoe UI"
+	; Use appropriate text color based on theme
+	global FontColor
+	local fontSpec := "s10 c" FontColor " Segoe UI"
+	; Use numeric color values for BackColor so controls render correctly
 	local bgColor := DarkMode ? 0x1E1E1E : 0xF5F5F5
 	RestartDelay.Font := fontSpec
 	RestartDelay.BackColor := bgColor
@@ -680,7 +725,7 @@ ClearSettings() {
 	RightAnkleBreakMultiplier.Value := ""
 	LeftAnkleBreakMultiplier.Value := ""
 	
-	DropItem.Value := ""
+	; keep config selection intact when clearing other settings
 }
 
 ; Load settings
