@@ -1,6 +1,6 @@
 # Fisch
 
-Lightweight Roblox fishing macro (AutoHotkey v2) — remastered UI and config support. (please note it's still AHK V1) V13 will be ahk v2 also a lot of inprovements will be made so dont be mad )
+Lightweight Roblox fishing macro (AutoHotkey v2) — remastered UI and config support. (Please note it's still AHK V1) V13 will be ahk v2 also a lot of improvements will be made so don't be mad.
 
 ## Overview
 
