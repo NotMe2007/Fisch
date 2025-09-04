@@ -1,717 +1,809 @@
 ﻿#SingleInstance Force
-setkeydelay, -1
-setmousedelay, -1
-setbatchlines, -1
 SetTitleMatchMode 2
-
-CoordMode, Tooltip, Relative
-CoordMode, Pixel, Relative
-CoordMode, Mouse, Relative
-
-; Theme state
-DarkMode := 0
 
 ; Application/version label (change this string to update the GUI title)
 AppVersion := "V13 Remasterd by SeneX"
 
+; Theme state
+DarkMode := 0
+
+; Runtime tracking variables
+runtimeS := 0
+runtimeM := 0
+runtimeH := 0
+f10counter := 0
+
+; Config search variables
+masterCfgList := []
+
+
+; Simple INI helpers (AHK v2-compatible). Use IniReadVar/IniWriteVar to access INI files.
+IniReadVar(file, section, key, default := "") {
+	return IniRead(file, section, key, default)
+}
+
+IniWriteVar(file, section, key, value) {
+	return IniWrite(file, section, key, value)
+}
+
 ; GUI==============================================================================================================;
+; Require AHK v2 and build object-style GUI
+
+#Requires AutoHotkey v2
 
 ; If a saved theme exists in default.ini, load it so controls are created with correct colors
-IniRead, startDarkMode, %A_ScriptDir%\default.ini, General, DarkMode
+startDarkMode := IniReadVar(A_ScriptDir "\\default.ini", "General", "DarkMode", "")
 if (startDarkMode != "")
 	DarkMode := startDarkMode
 
-Gui, +Resize +MinSize
-Gui, Margin, 12, 12
-if (DarkMode)
-{
-	Gui, Color, 0x1E1E1E
-	Gui, Font, s12 cFFFFFF, Segoe UI
+; Create GUI (AHK v2 style)
+MainGui := Gui("+Resize +MinSize", "Fisch Macro " . AppVersion)
+MainGui.MarginX := 12
+MainGui.MarginY := 12
+
+; Set base font and color depending on theme
+if (DarkMode) {
+	MainGui.Font := "s12 cFFFFFF Segoe UI"
+	MainGui.Color := "0x1E1E1E"
 	FontColor := "FFFFFF"
-}
-else
-{
-	Gui, Color, 0xF5F5F5
-	Gui, Font, s12 c000000, Segoe UI
+} else {
+	MainGui.Font := "s12 c000000 Segoe UI"
+	MainGui.Color := "0xF5F5F5"
 	FontColor := "000000"
 }
-; Title label removed from main GUI (window title still set separately)
-Gui, Font, s10 c%FontColor%, Segoe UI
-Gui, Add, Tab2, x10 y15 w780 h500, General Settings|Shake Settings|Minigame Settings
 
-; General Settings Tab ==============================
-Gui, Tab, General Settings
-Gui, Add, Text, x30 y50, Lower Graphics:
-Gui, Add, Button, x170 y50 w20 h18 gHelpLower, ?
-Gui, Add, Checkbox, x266 y50 vAutoLowerGraphics, Enable
-Gui, Add, Text, x30 y90, Zoom In:
-Gui, Add, Button, x170 y90 w20 h18 gHelpZoom, ?
-Gui, Add, Checkbox, x266 y90 vAutoZoomInCamera, Enable
-Gui, Add, Text, x30 y130, Enable Camera Mode:
-Gui, Add, Button, x170 y130 w20 h18 gHelpEnableCam, ?
-Gui, Add, Checkbox, x266 y130 vAutoEnableCameraMode, Enable
-Gui, Add, Text, x30 y170, Look Down:
-Gui, Add, Button, x170 y170 w20 h18 gHelpLookDown, ?
-Gui, Add, Checkbox, x266 y170 vAutoLookDownCamera, Enable
-Gui, Add, Text, x30 y210, Blur:
-Gui, Add, Button, x170 y210 w20 h18 gHelpBlur, ?
-Gui, Add, Checkbox, x266 y210 vAutoBlurCamera, Enable
-Gui, Add, Text, x30 y240, Restart Delay (ms):
-Gui, Add, Edit, x220 y240 w100 vRestartDelay, 1500
-Gui, Add, Text, x30 y280, Hold Rod Cast Duration (ms):
-Gui, Add, Edit, x220 y280 w100 vHoldRodCastDuration, 600
-Gui, Add, Text, x30 y320, Wait for Bobber to Land (ms):
-Gui, Add, Edit, x220 y320 w100 vWaitForBobberDelay, 1000
-Gui, Add, Text, x30 y360, Bait Delay (ms):
-Gui, Add, Edit, x220 y360 w100 vBaitDelay, 300
-Gui, Add, Text, x30 y400, Default at 300
+MainGui.Font := "s10 c" FontColor " Segoe UI"
 
-Gui, Add, Text, x380 y300, Seraphic Rod Check:
-Gui, Add, Checkbox, x500 y300 vSera, Enable
-Gui, Add, Text, x380 y320, Only Enable if youre using Seraphic Rod
+Tab := MainGui.Add("Tab", "x10 y15 w780 h500", ["General Settings", "Shake Settings", "Minigame Settings"])
 
-; Mini guide (compact clickable) - visible text removed, info available via the small 'i' buttons
-Gui, Font, s9 c%FontColor%, Segoe UI
-Gui, Add, Button, x360 y40 w16 h16 gInfo1, i
-Gui, Add, Button, x360 y60 w16 h16 gInfo2, i
-Gui, Add, Button, x360 y80 w16 h16 gInfo3, i
-Gui, Add, Button, x360 y120 w16 h16 gInfo4, i
-Gui, Add, Button, x360 y200 w16 h16 gInfo5, i
-Gui, Add, Button, x360 y240 w16 h16 gInfo6, i
-Gui, Add, Button, x360 y280 w16 h16 gInfo7, i
-Gui, Add, Button, x360 y360 w16 h16 gInfo8, i
-Gui, Font, s10 c%FontColor%, Segoe UI
+; General Settings Tab
+Tab.UseTab("General Settings")
+MainGui.Add("Text", "x30 y50", "Lower Graphics:")
+MainGui.Add("Button", "x170 y50 w20 h18", "?").OnEvent("Click", (*) => HelpLower())
+AutoLowerGraphics := MainGui.Add("Checkbox", "x266 y50 vAutoLowerGraphics", "Enable")
+MainGui.Add("Text", "x30 y90", "Zoom In:")
+MainGui.Add("Button", "x170 y90 w20 h18", "?").OnEvent("Click", (*) => HelpZoom())
+AutoZoomInCamera := MainGui.Add("Checkbox", "x266 y90 vAutoZoomInCamera", "Enable")
+MainGui.Add("Text", "x30 y130", "Enable Camera Mode:")
+MainGui.Add("Button", "x170 y130 w20 h18", "?").OnEvent("Click", (*) => HelpEnableCam())
+AutoEnableCameraMode := MainGui.Add("Checkbox", "x266 y130 vAutoEnableCameraMode", "Enable")
+MainGui.Add("Text", "x30 y170", "Look Down:")
+MainGui.Add("Button", "x170 y170 w20 h18", "?").OnEvent("Click", (*) => HelpLookDown())
+AutoLookDownCamera := MainGui.Add("Checkbox", "x266 y170 vAutoLookDownCamera", "Enable")
+MainGui.Add("Text", "x30 y210", "Blur:")
+MainGui.Add("Button", "x170 y210 w20 h18", "?").OnEvent("Click", (*) => HelpBlur())
+AutoBlurCamera := MainGui.Add("Checkbox", "x266 y210 vAutoBlurCamera", "Enable")
+MainGui.Add("Text", "x30 y240", "Restart Delay (ms):")
+RestartDelay := MainGui.Add("Edit", "x220 y240 w100 vRestartDelay", "1500")
+MainGui.Add("Text", "x30 y280", "Hold Rod Cast Duration (ms):")
+HoldRodCastDuration := MainGui.Add("Edit", "x220 y280 w100 vHoldRodCastDuration", "600")
+MainGui.Add("Text", "x30 y320", "Wait for Bobber to Land (ms):")
+WaitForBobberDelay := MainGui.Add("Edit", "x220 y320 w100 vWaitForBobberDelay", "1000")
+MainGui.Add("Text", "x30 y360", "Bait Delay (ms):")
+BaitDelay := MainGui.Add("Edit", "x220 y360 w100 vBaitDelay", "300")
 
-; Shake Settings Tab =====================================
-Gui, Tab, Shake Settings
-Gui, Add, Text, x30 y65, Navigation Key:
-Gui, Add, Edit, x190 y65 w100 vNavigationKey, \
-Gui, Add, Text, x30 y105, Shake Mode:
-; Use DropDownList so it's non-editable and matches the configs dropdown behavior
-Gui, Add, DropDownList, x190 y105 w100 vShakeMode, Click|Navigation
-Gui, Add, Text, x30 y145, Shake Failsafe (sec):
-Gui, Add, Edit, x190 y145 w100 vShakeFailsafe, 20
+MainGui.Add("Text", "x380 y300", "Seraphic Rod Check:")
+Sera := MainGui.Add("Checkbox", "x500 y300 vSera", "Enable")
+MainGui.Add("Text", "x380 y320", "Only Enable if youre using Seraphic Rod")
+
+; Mini guide (compact clickable) - info buttons
+MainGui.Font := "s9 c" FontColor " Segoe UI"
+MainGui.Add("Button", "x360 y40 w16 h16", "i").OnEvent("Click", (*) => Info1())
+MainGui.Add("Button", "x360 y60 w16 h16", "i").OnEvent("Click", (*) => Info2())
+MainGui.Add("Button", "x360 y80 w16 h16", "i").OnEvent("Click", (*) => Info3())
+MainGui.Add("Button", "x360 y120 w16 h16", "i").OnEvent("Click", (*) => Info4())
+MainGui.Add("Button", "x360 y200 w16 h16", "i").OnEvent("Click", (*) => Info5())
+MainGui.Add("Button", "x360 y240 w16 h16", "i").OnEvent("Click", (*) => Info6())
+MainGui.Add("Button", "x360 y280 w16 h16", "i").OnEvent("Click", (*) => Info7())
+MainGui.Add("Button", "x360 y360 w16 h16", "i").OnEvent("Click", (*) => Info8())
+MainGui.Font := "s10 c" FontColor " Segoe UI"
+
+; Shake Settings Tab
+Tab.UseTab("Shake Settings")
+MainGui.Add("Text", "x30 y65", "Navigation Key:")
+NavigationKey := MainGui.Add("Edit", "x190 y65 w100 vNavigationKey", '\')
+MainGui.Add("Text", "x30 y105", "Shake Mode:")
+ShakeMode := MainGui.Add("DropDownList", "x190 y105 w100 vShakeMode", ["Click", "Navigation"])
+MainGui.Add("Text", "x30 y145", "Shake Failsafe (sec):")
+ShakeFailsafe := MainGui.Add("Edit", "x190 y145 w100 vShakeFailsafe", "20")
 
 ; Click set
-Gui, Add, Text, x30 y185, Click Shake Color Tolerance:
-Gui, Add, Edit, x190 y185 w100 vClickShakeColorTolerance, 3
-Gui, Add, Text, x30 y225, Click Scan Delay (ms):
-Gui, Add, Edit, x190 y225 w100 vClickScanDelay, 10
-Gui, Add, Text, x380 y225, Adjust the Click Speed
+MainGui.Add("Text", "x30 y185", "Click Shake Color Tolerance:")
+ClickShakeColorTolerance := MainGui.Add("Edit", "x190 y185 w100 vClickShakeColorTolerance", "3")
+MainGui.Add("Text", "x30 y225", "Click Scan Delay (ms):")
+ClickScanDelay := MainGui.Add("Edit", "x190 y225 w100 vClickScanDelay", "10")
+MainGui.Add("Text", "x380 y225", "Adjust the Click Speed")
 
 ; Nav set
-Gui, Add, Text, x30 y265, Navigation Spam Delay (ms):
-Gui, Add, Edit, x190 y265 w100 vNavigationSpamDelay, 10
-Gui, Add, Text, x380 y265, Adjust the Navigation spam speed
+MainGui.Add("Text", "x30 y265", "Navigation Spam Delay (ms):")
+NavigationSpamDelay := MainGui.Add("Edit", "x190 y265 w100 vNavigationSpamDelay", "10")
+MainGui.Add("Text", "x380 y265", "Adjust the Navigation spam speed")
 
-Gui, Add, Text, x380 y65, Check your Navigation Key in the Roblox settings
-Gui, Add, Text, x380 y105, Click for for mouse clicks | Navigation for Navigation spam
-Gui, Add, Text, x380 y145, How many seconds before restarting if failed to shake
-Gui, Add, Text, x30 y325, If you already set it up, to ensure Shake Mode works:
-Gui, Add, Text, x30 y345, Load settings -> Save settings -> Start Macro
+MainGui.Add("Text", "x380 y65", "Check your Navigation Key in the Roblox settings")
+MainGui.Add("Text", "x380 y105", "Click for for mouse clicks | Navigation for Navigation spam")
+MainGui.Add("Text", "x380 y145", "How many seconds before restarting if failed to shake")
+MainGui.Add("Text", "x30 y325", "If you already set it up, to ensure Shake Mode works:")
+MainGui.Add("Text", "x30 y345", "Load settings -> Save settings -> Start Macro")
 
-; Minigame Settings Tab	============================
-Gui, Tab, Minigame Settings
+; Minigame Settings Tab
+Tab.UseTab("Minigame Settings")
 
-; Bar calc
-Gui, Font, Bold
-Gui, Add, Text, x30 y65, !!!!! Check the Control stat of your Rod !!!!!
-Gui, Font, Norm
-Gui, Add, Text, x30 y85, Control Value:
-Gui, Add, Edit, x180 y85 w100 vControl, 0
-Gui, Add, Text, x30 y125, Fish Bar Tolerance:
-Gui, Add, Edit, x180 y125 w100 vFishBarColorTolerance, 5
-Gui, Add, Text, x30 y165, White Bar Tolerance:
-Gui, Add, Edit, x180 y165 w100 vWhiteBarColorTolerance, 15
-Gui, Add, Text, x30 y205, Arrow Tolerance:
-Gui, Add, Edit, x180 y205 w100 vArrowColorTolerance, 6
+MainGui.Font := "Bold"
+MainGui.Add("Text", "x30 y65", "!!!!! Check the Control stat of your Rod !!!!!")
+MainGui.Font := "s10 c" FontColor " Segoe UI"
+MainGui.Add("Text", "x30 y85", "Control Value:")
+Control := MainGui.Add("Edit", "x180 y85 w100 vControl", "0")
+MainGui.Add("Text", "x30 y125", "Fish Bar Color Tolerance:")
+FishBarColorTolerance := MainGui.Add("Edit", "x180 y125 w100 vFishBarColorTolerance", "5")
+MainGui.Add("Text", "x30 y165", "White Bar Color Tolerance:")
+WhiteBarColorTolerance := MainGui.Add("Edit", "x180 y165 w100 vWhiteBarColorTolerance", "15")
+MainGui.Add("Text", "x30 y205", "Arrow Color Tolerance:")
+ArrowColorTolerance := MainGui.Add("Edit", "x180 y205 w100 vArrowColorTolerance", "6")
 
-; Bar control
-Gui, Add, Text, x30 y245, Scan Delay:
-Gui, Add, Edit, x180 y245 w100 vScanDelay, 10
-Gui, Add, Text, x30 y285, Side Bar Ratio:
-Gui, Add, Edit, x180 y285 w100 vSideBarRatio, 0.7
-Gui, Add, Text, x30 y325, Side Bar Delay:
-Gui, Add, Edit, x180 y325 w100 vSideDelay, 400
+MainGui.Add("Text", "x30 y245", "Scan Delay:")
+ScanDelay := MainGui.Add("Edit", "x180 y245 w100 vScanDelay", "10")
+MainGui.Add("Text", "x30 y285", "Side Bar Ratio:")
+SideBarRatio := MainGui.Add("Edit", "x180 y285 w100 vSideBarRatio", "0.7")
+MainGui.Add("Text", "x30 y325", "Side Delay:")
+SideDelay := MainGui.Add("Edit", "x180 y325 w100 vSideDelay", "400")
 
-Gui, Add, Text, x30 y365, Minigame Settings Guide
-Gui, Add, Text, x30 y385, Make your own config or use others
+MainGui.Add("Text", "x30 y365", "Minigame Settings Guide")
+MainGui.Add("Text", "x30 y385", "Make your own config or use others")
 
+; Right side labels for multiplier/division settings
+MainGui.Add("Text", "x380 y65", "Stable Right Multiplier:")
 ; Stable
-Gui, Add, Text, x400 y65, Stable Right Multiplier:
-Gui, Add, Edit, x550 y65 w100 vStableRightMultiplier, 2.36
-Gui, Add, Text, x400 y105, Stable Right Division:
-Gui, Add, Edit, x550 y105 w100 vStableRightDivision, 1.55
-Gui, Add, Text, x400 y145, Stable Left Multiplier:
-Gui, Add, Edit, x550 y145 w100 vStableLeftMultiplier, 1.211
-Gui, Add, Text, x400 y185, Stable Left Division:
-Gui, Add, Edit, x550 y185 w100 vStableLeftDivision, 1.12
+StableRightMultiplier := MainGui.Add("Edit", "x550 y65 w100 vStableRightMultiplier", "2.36")
+MainGui.Add("Text", "x380 y105", "Stable Right Division:")
+StableRightDivision := MainGui.Add("Edit", "x550 y105 w100 vStableRightDivision", "1.55")
+MainGui.Add("Text", "x380 y145", "Stable Left Multiplier:")
+StableLeftMultiplier := MainGui.Add("Edit", "x550 y145 w100 vStableLeftMultiplier", "1.211")
+MainGui.Add("Text", "x380 y185", "Stable Left Division:")
+StableLeftDivision := MainGui.Add("Edit", "x550 y185 w100 vStableLeftDivision", "1.12")
 
 ; Unstable
-Gui, Add, Text, x400 y210, Unstable Right Multiplier:
-Gui, Add, Edit, x550 y210 w100 vUnstableRightMultiplier, 2.665
-Gui, Add, Text, x400 y250, Unstable Right Division:
-Gui, Add, Edit, x550 y250 w100 vUnstableRightDivision, 1.5
-Gui, Add, Text, x400 y290, Unstable Left Multiplier:
-Gui, Add, Edit, x550 y290 w100 vUnstableLeftMultiplier, 2.19
-Gui, Add, Text, x400 y330, Unstable Left Division:
-Gui, Add, Edit, x550 y330 w100 vUnstableLeftDivision, 1
+MainGui.Add("Text", "x380 y210", "Unstable Right Multiplier:")
+UnstableRightMultiplier := MainGui.Add("Edit", "x550 y210 w100 vUnstableRightMultiplier", "2.665")
+MainGui.Add("Text", "x380 y250", "Unstable Right Division:")
+UnstableRightDivision := MainGui.Add("Edit", "x550 y250 w100 vUnstableRightDivision", "1.5")
+MainGui.Add("Text", "x380 y290", "Unstable Left Multiplier:")
+UnstableLeftMultiplier := MainGui.Add("Edit", "x550 y290 w100 vUnstableLeftMultiplier", "2.19")
+MainGui.Add("Text", "x380 y330", "Unstable Left Division:")
+UnstableLeftDivision := MainGui.Add("Edit", "x550 y330 w100 vUnstableLeftDivision", "1")
 
 ; Ankle
-Gui, Add, Text, x400 y360, Right Ankle Break Multiplier:
-Gui, Add, Edit, x550 y360 w100 vRightAnkleBreakMultiplier, 0.75
-Gui, Add, Text, x400 y400, Left Ankle Break Multiplier:
-Gui, Add, Edit, x550 y400 w100 vLeftAnkleBreakMultiplier, 0.45
+MainGui.Add("Text", "x380 y360", "Right Ankle Break Multiplier:")
+RightAnkleBreakMultiplier := MainGui.Add("Edit", "x550 y360 w100 vRightAnkleBreakMultiplier", "0.75")
+MainGui.Add("Text", "x380 y400", "Left Ankle Break Multiplier:")
+LeftAnkleBreakMultiplier := MainGui.Add("Edit", "x550 y400 w100 vLeftAnkleBreakMultiplier", "0.45")
 
-; Buttons
-Gui, Tab
-Gui, Add, Button, x200 y460 w80 h30 gSaveSettings, Save settings
-Gui, Add, Button, x300 y460 w80 h30 gLoadSettings, Load settings
-Gui, Add, Button, x400 y460 w80 h30 gExitScript, Exit
-Gui, Add, Button, x500 y460 w80 h30 gLaunch, Start Macro
-Gui, Add, Button, x600 y460 w80 h30 gToggleDarkMode vDarkModeBtn, Dark Mode
-Gui, Add, Text, x30 y440 , Configs list
-; Remove the search box and place the configs dropdown where the search box was.
-; Users must pick from the dropdown (no incremental search) to change configs.
-Gui, Add, DropDownList, x30 y460 w155 vDropItem gSelectItem
-Gui, Show,, Fisch macro %AppVersion%
-Gui, +AlwaysOnTop
+; End of tab content - place buttons outside tabs
+Tab.UseTab()
+
+; Buttons row
+BtnSave := MainGui.Add("Button", "x200 y460 w80 h30", "Save settings")
+BtnSave.OnEvent("Click", (*) => SaveSettings())
+BtnLoad := MainGui.Add("Button", "x300 y460 w80 h30", "Load settings")
+BtnLoad.OnEvent("Click", (*) => LoadSettings())
+BtnExit := MainGui.Add("Button", "x400 y460 w80 h30", "Exit")
+BtnExit.OnEvent("Click", (*) => ExitScript())
+BtnLaunch := MainGui.Add("Button", "x500 y460 w80 h30", "Start Macro")
+BtnLaunch.OnEvent("Click", (*) => Launch())
+BtnToggleDark := MainGui.Add("Button", "x600 y460 w80 h30 vDarkModeBtn", "Dark Mode")
+BtnToggleDark.OnEvent("Click", (*) => ToggleDarkMode())
+MainGui.Add("Text", "x30 y440", "Configs list")
+CfgSearch := MainGui.Add("Edit", "x30 y460 w75 vCfgSearch", "")
+CfgSearch.OnEvent("Change", (*) => FilterConfigs())
+DropItem := MainGui.Add("DropDownList", "x110 y460 w75 vDropItem")
+DropItem.OnEvent("Change", SelectItem)
+
+MainGui.Show()
+MainGui.OnEvent("Close", (*) => ExitScript())
+MainGui.AlwaysOnTop := true
 
 ; Update Dark Mode button label to reflect current state (show action)
 if (DarkMode)
-	GuiControl,, DarkModeBtn, Light Mode
+	BtnToggleDark.Text := "Light Mode"
 else
-	GuiControl,, DarkModeBtn, Dark Mode
+	BtnToggleDark.Text := "Dark Mode"
 
 ; Ensure edit/dropdown text remains black for readability
-gosub, SetEditFonts
+SetEditFonts()
 
-; Build a pipe-separated list of config names from the `Configs` folder and set the dropdown once.
+
+; (Dark mode button already updated via object .Value above)
+
+; Build a list of config names from the `Configs` folder and set the dropdown
 masterCfgList := []
-cfgSeen := {}
-Loop, %A_ScriptDir%\Configs\*.ini
-{
-	StringTrimRight, fileName, A_LoopFileName, 4
-	; skip empty or invalid names
-	if (fileName = "" || fileName = ".")
+seen := {}
+Loop Files, A_ScriptDir "\Configs\*.ini" {
+	fileName := RegExReplace(A_LoopFileName, "\.ini$")
+	if (fileName == "" || fileName == ".")
 		continue
-	if (cfgSeen[fileName])
+	if (seen.HasProp(fileName))
 		continue
-	cfgSeen[fileName] := true
+	seen.%fileName% := true
 	masterCfgList.Push(fileName)
 }
-; populate dropdown with all items (no search/filtering)
-out := ""
-for index, name in masterCfgList
-	out := (out = "" ? name : out "|" name)
-if (out = "")
-	out := "(no configs)"
-GuiControl,, DropItem, %out%
+
+; Build master list from root folder as well
+Loop Files, A_ScriptDir "\*.ini" {
+	fileName := RegExReplace(A_LoopFileName, "\.ini$")
+	if (fileName == "" || fileName == "." || fileName == "default")
+		continue
+	if (seen.HasProp(fileName))
+		continue
+	seen.%fileName% := true
+	masterCfgList.Push(fileName)
+}
+
+FilterConfigs()
+
+; End of auto-execute portion - functions start after this Return
+
+; Hotkeys with runtime WinActive checks (AHK v2-friendly)
+o::
+{
+	if WinActive("ahk_class AutoHotkeyGUI")
+		return
+	Reload()
+}
+
+m::
+{
+	if WinActive("ahk_class AutoHotkeyGUI")
+		return
+	ExitApp()
+}
+
+p::
+{
+	if WinActive("ahk_class AutoHotkeyGUI")
+		return
+	StartCalculation()
+}
+    
 
 ; Restore previously selected config if it exists
-IniRead, savedConfig, %A_ScriptDir%\default.ini, General, CurrentConfig
+savedConfig := IniReadVar(A_ScriptDir "\\default.ini", "General", "CurrentConfig", "")
 if (savedConfig != "" && savedConfig != "ERROR") {
 	for index, configName in masterCfgList {
 		if (configName = savedConfig) {
-			GuiControl, Choose, DropItem, %savedConfig%
-			DropItem := savedConfig
-			SettingsFileName := A_ScriptDir . "\Configs\" . savedConfig . ".ini"
-			Gosub, LoadSettings
+			DropItem.Value := savedConfig
+			SettingsFileName := A_ScriptDir '\Configs\' savedConfig '.ini'
+			LoadSettings()
 			break
 		}
 	}
 }
 
 ; start hover checker for help buttons
-SetTimer, CheckHelpHover, 200
+SetTimer(CheckHelpHover, 200)
 
 ; Ensure SettingsFileName has a sane default so writes go to a real file
 SettingsFileName := A_ScriptDir . "\default.ini"
 
 ; Load default settings on startup only if no config was restored
 if (DropItem = "") {
-    Gosub, LoadSettings
+	LoadSettings()
 }
 
-SelectItem:
-    Gui, Submit, NoHide
-	; If user picked the special '(no matches)', warn and do nothing
-	if (DropItem = "(no matches)") {
-		Return
-	}
-	if (DropItem = "") {
-		; fall back to default
-		SettingsFileName := A_ScriptDir . "\default.ini"
+Return
+
+SelectItem(ctrl, eventInfo)
+{
+	selected := ctrl.Value
+	if (selected = "(no configs)" || selected = "(no matches)")
+		return
+	if (selected = "") {
+		SettingsFileName := A_ScriptDir "\\default.ini"
 	} else {
-		; load from Configs subfolder
-		SettingsFileName := A_ScriptDir . "\Configs\" . DropItem . ".ini"
+	SettingsFileName := A_ScriptDir '\\Configs\\' selected '.ini'
+	; If not found in Configs folder, try root folder
+	if !FileExist(SettingsFileName)
+		SettingsFileName := A_ScriptDir '\\' selected '.ini'
 	}
+	if !FileExist(SettingsFileName)
+		return
+	LoadSettings()
+	ctrl.Value := selected
+}
 
-	; Only attempt to load if the file exists
-	if !FileExist(SettingsFileName) {
-		Return
-	}
-
-	; Load and apply the selected config
-	Gosub, LoadSettings
-	; ensure dropdown shows the current selection
-	GuiControl, Choose, DropItem, %DropItem%
+FilterConfigs()
+{
+	global CfgSearch, DropItem, masterCfgList
+	search := CfgSearch.Value
+	searchLower := StrLower(search)
+	filteredList := []
 	
-	; silent success (no popup)
-Return
+	for index, name in masterCfgList {
+		nameLower := StrLower(name)
+		if (searchLower = "" || InStr(nameLower, searchLower)) {
+			filteredList.Push(name)
+		}
+	}
+	
+	DropItem.Delete()
+	if (filteredList.Length = 0) {
+		DropItem.Add(["(no matches)"])
+	} else {
+		DropItem.Add(filteredList)
+		; Focus the dropdown and open it if there are matches
+		SetTimer(() => OpenCfgDropdown(), -80)
+	}
+}
 
-HelpLower:
-	Tooltip, Lowers in-game graphics automatically to improve performance., 200, 200
-	SetTimer, ClearTooltip, -1500
-Return
+OpenCfgDropdown()
+{
+	global DropItem
+	DropItem.Focus()
+	Send("{Down}")
+}
 
-HelpZoom:
-	Tooltip, Zooms the camera in to improve detection of targets., 200, 200
-	SetTimer, ClearTooltip, -1500
-Return
+HelpLower() {
+	Tooltip("Lowers in-game graphics automatically to improve performance.", 200, 200)
+	SetTimer(ClearTooltip, -1500)
+}
 
-HelpEnableCam:
-	Tooltip, Enables camera-mode automatically before starting the macro., 200, 200
-	SetTimer, ClearTooltip, -1500
-Return
+HelpZoom() {
+	Tooltip("Zooms the camera in to improve detection of targets.", 200, 200)
+	SetTimer(ClearTooltip, -1500)
+}
 
-HelpLookDown:
-	Tooltip, Automatically looks down to position the bobber in view., 200, 200
-	SetTimer, ClearTooltip, -1500
-Return
+HelpEnableCam() {
+	Tooltip("Enables camera-mode automatically before starting the macro.", 200, 200)
+	SetTimer(ClearTooltip, -1500)
+}
 
-HelpBlur:
-	Tooltip, Toggles blur effect handling (used to open certain menus)., 200, 200
-	SetTimer, ClearTooltip, -1500
-Return
+HelpLookDown() {
+	Tooltip("Automatically looks down to position the bobber in view.", 200, 200)
+	SetTimer(ClearTooltip, -1500)
+}
 
-Info1:
-	; Create a small persistent info GUI with clickable labels
-	Gui, Info1: New, +AlwaysOnTop -SysMenu +ToolWindow, Info - Join White Sands Macros
-	Gui, Info1: Font, s10 c%FontColor%, Segoe UI
-	Gui, Info1: Add, Text, x10 y10, Join White Sands Macros
-	Gui, Info1: Add, Text, x10 y30 gOpenRemaster c00AEEF, was remasted by SenX
-	Gui, Info1: Add, Text, x170 y30 gOpenDiscord c00AEEF, https://discord.gg/dHUM2ejQGY
-	Gui, Info1: Add, Button, x10 y60 w60 h22 gCloseInfo1, Close
-	Gui, Info1: Show, AutoSize Center, Info
-Return
+HelpBlur() {
+	Tooltip("Toggles blur effect handling (used to open certain menus).", 200, 200)
+	SetTimer(ClearTooltip, -1500)
+}
 
-Info2:
-	; silent info
-Return
+; persistent small info GUI
+Info1() {
+	global Info1Gui, FontColor
+	Info1Gui := Gui("+AlwaysOnTop -SysMenu +ToolWindow", "Info - Join White Sands Macros")
+	Info1Gui.Font := "s10 c" FontColor " Segoe UI"
+	Info1Gui.Add("Text", "x10 y10", "Join White Sands Macros")
+	t1 := Info1Gui.Add("Text", "x10 y30 c00AEEF", "was remasted by SenX")
+	t1.OnEvent("Click", (*) => OpenRemaster())
+	t2 := Info1Gui.Add("Text", "x170 y30 c00AEEF", "https://discord.gg/dHUM2ejQGY")
+	t2.OnEvent("Click", (*) => OpenDiscord())
+	btn := Info1Gui.Add("Button", "x10 y60 w60 h22", "Close")
+	btn.OnEvent("Click", (*) => CloseInfo1())
+	Info1Gui.Show("AutoSize Center")
+}
 
-Info3:
-	; silent info
-Return
+Info2() {
+	MsgBox("Check out the pre-setup before you begin (Only available in the discord above)", "Info", 0x40000)
+}
 
-Info4:
-	; silent info
-Return
+Info3() {
+	MsgBox("If its your first time, please check all the boxes", "Info", 0x40000)
+}
 
-Info5:
-	; silent info
-Return
+Info4() {
+	MsgBox("Click the camera icon top right in case it doesnt work", "Info", 0x40000)
+}
 
-Info6:
-	; silent info
-Return
+Info5() {
+	MsgBox("If youre wondering, this will open the menu after enabling camera mode", "Info", 0x40000)
+}
 
-Info7:
-	; silent info
-Return
+Info6() {
+	MsgBox("Adjust wait time before restarting the macro", "Info", 0x40000)
+}
 
-Info8:
-	; silent info
-Return
+Info7() {
+	MsgBox("Increase the Hold duration if you have high ping", "Info", 0x40000)
+}
 
-OpenRemaster:
+Info8() {
+	MsgBox("If you cant load or save settings, Right click the macro and choose Run as Admin`n( requires AutoHotkey v2 )", "Info", 0x40000)
+}
+
+OpenRemaster() {
 	; Open the discord for now (no separate URL was provided for remaster credit)
-	Run, https://discord.gg/dHUM2ejQGY
-Return
+	Run("https://discord.gg/dHUM2ejQGY")
+}
 
-OpenDiscord:
-	Run, https://discord.gg/dHUM2ejQGY
-Return
+OpenDiscord() { 
+	Run("https://discord.gg/dHUM2ejQGY") 
+}
 
-CloseInfo1:
-	Gui, Info1: Destroy
-Return
+CloseInfo1() {
+	global Info1Gui
+	if IsObject(Info1Gui)
+		Info1Gui.Destroy()
+}
 
-ClearTooltip:
-	Tooltip
-Return
+ClearTooltip() { 
+	Tooltip() 
+}
 
-CheckHelpHover:
-	; Check mouse over each help button and show tooltip accordingly
-	MouseGetPos, mx, my
-	; check each button by getting its position
-	ControlGetPos, x, y, w, h, Button3, A
-	; Note: the control names vary; we'll test by approximate areas used earlier
-	; Lower help approx at x270 y50
+CheckHelpHover() {
+	MouseGetPos(&mx, &my)
 	if (mx >= 270 && mx <= 290 && my >= 50 && my <= 68) {
-		Tooltip, Lowers in-game graphics automatically to improve performance., %mx%, %my%
+		Tooltip("Lowers in-game graphics automatically to improve performance.", mx, my)
 		return
 	}
 	if (mx >= 270 && mx <= 290 && my >= 90 && my <= 108) {
-		Tooltip, Zooms the camera in to improve detection of targets., %mx%, %my%
+		Tooltip("Zooms the camera in to improve detection of targets.", mx, my)
 		return
 	}
 	if (mx >= 270 && mx <= 290 && my >= 130 && my <= 148) {
-		Tooltip, Enables camera-mode automatically before starting the macro., %mx%, %my%
+		Tooltip("Enables camera-mode automatically before starting the macro.", mx, my)
 		return
 	}
 	if (mx >= 270 && mx <= 290 && my >= 170 && my <= 188) {
-		Tooltip, Automatically looks down to position the bobber in view., %mx%, %my%
+		Tooltip("Automatically looks down to position the bobber in view.", mx, my)
 		return
 	}
 	if (mx >= 270 && mx <= 290 && my >= 210 && my <= 228) {
-		Tooltip, Toggles blur effect handling (used to open certain menus)., %mx%, %my%
+		Tooltip("Toggles blur effect handling (used to open certain menus).", mx, my)
 		return
 	}
-	Tooltip
-Return
+	Tooltip()
+}
 
 ; Search/filtering removed — users must pick from dropdown to change configs
 
-
 ; Save settings
-SaveSettings:
-	Gui, Submit, NoHide
-	if (DropItem = "")
-		SettingsFileName := A_ScriptDir . "\default.ini"
+SaveSettings() {
+	; read values from control objects and write to INI
+	sel := DropItem.Value
+	if (sel = "")
+		SettingsFileName := A_ScriptDir "\\default.ini"
 	else
-		SettingsFileName := A_ScriptDir . "\Configs\" . DropItem . ".ini"
-    
-    FileAppend, , %SettingsFileName%  ; Create the file if it doesn't exist
+	SettingsFileName := A_ScriptDir '\\Configs\\' sel '.ini'
 
-    IniWrite, %AutoLowerGraphics%, %SettingsFileName%, General, AutoLowerGraphics
-    IniWrite, %AutoZoomInCamera%, %SettingsFileName%, General, AutoZoomInCamera
-    IniWrite, %AutoEnableCameraMode%, %SettingsFileName%, General, AutoEnableCameraMode
-    IniWrite, %AutoLookDownCamera%, %SettingsFileName%, General, AutoLookDownCamera
-    IniWrite, %AutoBlurCamera%, %SettingsFileName%, General, AutoBlurCamera
+	FileAppend("", SettingsFileName) ; ensure file exists
 
-    IniWrite, %RestartDelay%, %SettingsFileName%, General, RestartDelay
-    IniWrite, %HoldRodCastDuration%, %SettingsFileName%, General, HoldRodCastDuration
-    IniWrite, %WaitForBobberDelay%, %SettingsFileName%, General, WaitForBobberDelay
-	IniWrite, %BaitDelay%, %SettingsFileName%, General, BaitDelay
-	IniWrite, %Sera%, %SettingsFileName%, General, Sera
+	IniWriteVar(SettingsFileName, "General", "AutoLowerGraphics", AutoLowerGraphics.Value)
+	IniWriteVar(SettingsFileName, "General", "AutoZoomInCamera", AutoZoomInCamera.Value)
+	IniWriteVar(SettingsFileName, "General", "AutoEnableCameraMode", AutoEnableCameraMode.Value)
+	IniWriteVar(SettingsFileName, "General", "AutoLookDownCamera", AutoLookDownCamera.Value)
+	IniWriteVar(SettingsFileName, "General", "AutoBlurCamera", AutoBlurCamera.Value)
 
-    IniWrite, %NavigationKey%, %SettingsFileName%, Shake, NavigationKey
-    IniWrite, %ShakeMode%, %SettingsFileName%, Shake, ShakeMode
-    IniWrite, %ShakeFailsafe%, %SettingsFileName%, Shake, ShakeFailsafe
+	IniWriteVar(SettingsFileName, "General", "RestartDelay", RestartDelay.Value)
+	IniWriteVar(SettingsFileName, "General", "HoldRodCastDuration", HoldRodCastDuration.Value)
+	IniWriteVar(SettingsFileName, "General", "WaitForBobberDelay", WaitForBobberDelay.Value)
+	IniWriteVar(SettingsFileName, "General", "BaitDelay", BaitDelay.Value)
+	IniWriteVar(SettingsFileName, "General", "Sera", Sera.Value)
 
-    IniWrite, %ClickShakeColorTolerance%, %SettingsFileName%, Shake, ClickShakeColorTolerance
-    IniWrite, %ClickScanDelay%, %SettingsFileName%, Shake, ClickScanDelay
-    IniWrite, %NavigationSpamDelay%, %SettingsFileName%, Shake, NavigationSpamDelay
+	IniWriteVar(SettingsFileName, "Shake", "NavigationKey", NavigationKey.Value)
+	; Save ShakeMode as text value instead of index
+	ShakeModeText := (ShakeMode.Value = 1) ? "Click" : "Navigation"
+	IniWriteVar(SettingsFileName, "Shake", "ShakeMode", ShakeModeText)
+	IniWriteVar(SettingsFileName, "Shake", "ShakeFailsafe", ShakeFailsafe.Value)
 
-    IniWrite, %Control%, %SettingsFileName%, Minigame, Control
-    IniWrite, %FishBarColorTolerance%, %SettingsFileName%, Minigame, FishBarColorTolerance
-    IniWrite, %WhiteBarColorTolerance%, %SettingsFileName%, Minigame, WhiteBarColorTolerance
-    IniWrite, %ArrowColorTolerance%, %SettingsFileName%, Minigame, ArrowColorTolerance
+	IniWriteVar(SettingsFileName, "Shake", "ClickShakeColorTolerance", ClickShakeColorTolerance.Value)
+	IniWriteVar(SettingsFileName, "Shake", "ClickScanDelay", ClickScanDelay.Value)
+	IniWriteVar(SettingsFileName, "Shake", "NavigationSpamDelay", NavigationSpamDelay.Value)
 
-    IniWrite, %ScanDelay%, %SettingsFileName%, Minigame, ScanDelay
-    IniWrite, %SideBarRatio%, %SettingsFileName%, Minigame, SideBarRatio
-    IniWrite, %SideDelay%, %SettingsFileName%, Minigame, SideDelay
+	IniWriteVar(SettingsFileName, "Minigame", "Control", Control.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "FishBarColorTolerance", FishBarColorTolerance.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "WhiteBarColorTolerance", WhiteBarColorTolerance.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "ArrowColorTolerance", ArrowColorTolerance.Value)
 
-    IniWrite, %StableRightMultiplier%, %SettingsFileName%, Minigame, StableRightMultiplier
-    IniWrite, %StableRightDivision%, %SettingsFileName%, Minigame, StableRightDivision
-    IniWrite, %StableLeftMultiplier%, %SettingsFileName%, Minigame, StableLeftMultiplier
-    IniWrite, %StableLeftDivision%, %SettingsFileName%, Minigame, StableLeftDivision
+	IniWriteVar(SettingsFileName, "Minigame", "ScanDelay", ScanDelay.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "SideBarRatio", SideBarRatio.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "SideDelay", SideDelay.Value)
 
-    IniWrite, %UnstableRightMultiplier%, %SettingsFileName%, Minigame, UnstableRightMultiplier
-    IniWrite, %UnstableRightDivision%, %SettingsFileName%, Minigame, UnstableRightDivision
-    IniWrite, %UnstableLeftMultiplier%, %SettingsFileName%, Minigame, UnstableLeftMultiplier
-    IniWrite, %UnstableLeftDivision%, %SettingsFileName%, Minigame, UnstableLeftDivision
-	
-	IniWrite, %RightAnkleBreakMultiplier%, %SettingsFileName%, Minigame, RightAnkleBreakMultiplier
-    IniWrite, %LeftAnkleBreakMultiplier%, %SettingsFileName%, Minigame, LeftAnkleBreakMultiplier
-	
-    ; Save current config name to default.ini for persistence across reloads
-    if (DropItem != "") {
-        IniWrite, %DropItem%, %A_ScriptDir%\default.ini, General, CurrentConfig
-    } else {
-        IniWrite, default, %A_ScriptDir%\default.ini, General, CurrentConfig
-    }
-	
-	; Done (silent)
-	Gui, -AlwaysOnTop
-	Gui, +AlwaysOnTop
-Return
+	IniWriteVar(SettingsFileName, "Minigame", "StableRightMultiplier", StableRightMultiplier.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "StableRightDivision", StableRightDivision.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "StableLeftMultiplier", StableLeftMultiplier.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "StableLeftDivision", StableLeftDivision.Value)
+
+	IniWriteVar(SettingsFileName, "Minigame", "UnstableRightMultiplier", UnstableRightMultiplier.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "UnstableRightDivision", UnstableRightDivision.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "UnstableLeftMultiplier", UnstableLeftMultiplier.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "UnstableLeftDivision", UnstableLeftDivision.Value)
+
+	IniWriteVar(SettingsFileName, "Minigame", "RightAnkleBreakMultiplier", RightAnkleBreakMultiplier.Value)
+	IniWriteVar(SettingsFileName, "Minigame", "LeftAnkleBreakMultiplier", LeftAnkleBreakMultiplier.Value)
+
+	if (sel != "")
+		IniWriteVar(A_ScriptDir "\\default.ini", "General", "CurrentConfig", sel)
+	else
+		IniWriteVar(A_ScriptDir "\\default.ini", "General", "CurrentConfig", "default")
+
+	; briefly toggle AlwaysOnTop to refresh if needed
+	MainGui.AlwaysOnTop := false
+	MainGui.AlwaysOnTop := true
+}
 
 ; Toggle Dark Mode
-ToggleDarkMode:
+ToggleDarkMode() {
+	global DarkMode, SettingsFileName
 	DarkMode := !DarkMode
-	; persist choice to the currently selected settings file (if set)
-	if (SettingsFileName != "") {
-		IniWrite, %DarkMode%, %SettingsFileName%, General, DarkMode
-	}
-	; always write to default.ini so startup (which reads default.ini) reflects the choice
-	IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
-	; apply theme immediately without restarting
-	gosub, ApplyTheme
-Return
+	if (SettingsFileName != "")
+		IniWriteVar(SettingsFileName, "General", "DarkMode", DarkMode)
+	IniWriteVar(A_ScriptDir "\\default.ini", "General", "DarkMode", DarkMode)
+	ApplyTheme()
+}
 
 ; Apply theme based on DarkMode
-ApplyTheme:
-	if (DarkMode)
+ApplyTheme() {
+	global DarkMode, MainGui, FontColor, BtnToggleDark, Tab
+	if (DarkMode) {
+		MainGui.Color := "0x1E1E1E"
+		FontColor := "FFFFFF"
+		BtnToggleDark.Text := "Light Mode"
+	} else {
+		MainGui.Color := "0xF5F5F5"
+		FontColor := "000000"
+		BtnToggleDark.Text := "Dark Mode"
+	}
+	SetEditFonts()
+}
+
+SetEditFonts() {
+	global RestartDelay, HoldRodCastDuration, WaitForBobberDelay, BaitDelay, NavigationKey, ShakeFailsafe
+	global ClickShakeColorTolerance, ClickScanDelay, NavigationSpamDelay, Control, FishBarColorTolerance
+	global WhiteBarColorTolerance, ArrowColorTolerance, ScanDelay, SideBarRatio, SideDelay
+	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
+	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
+	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier, DropItem, ShakeMode, FontColor, CfgSearch
+	; Use appropriate text color based on theme - black text for edit controls for visibility
+	local fontSpec := "s10 c000000 Segoe UI"
+	RestartDelay.Font := fontSpec
+	HoldRodCastDuration.Font := fontSpec
+	WaitForBobberDelay.Font := fontSpec
+	BaitDelay.Font := fontSpec
+	NavigationKey.Font := fontSpec
+	ShakeFailsafe.Font := fontSpec
+	ClickShakeColorTolerance.Font := fontSpec
+	ClickScanDelay.Font := fontSpec
+	NavigationSpamDelay.Font := fontSpec
+	Control.Font := fontSpec
+	FishBarColorTolerance.Font := fontSpec
+	WhiteBarColorTolerance.Font := fontSpec
+	ArrowColorTolerance.Font := fontSpec
+	ScanDelay.Font := fontSpec
+	SideBarRatio.Font := fontSpec
+	SideDelay.Font := fontSpec
+	StableRightMultiplier.Font := fontSpec
+	StableRightDivision.Font := fontSpec
+	StableLeftMultiplier.Font := fontSpec
+	StableLeftDivision.Font := fontSpec
+	UnstableRightMultiplier.Font := fontSpec
+	UnstableRightDivision.Font := fontSpec
+	UnstableLeftMultiplier.Font := fontSpec
+	UnstableLeftDivision.Font := fontSpec
+	RightAnkleBreakMultiplier.Font := fontSpec
+	LeftAnkleBreakMultiplier.Font := fontSpec
+	DropItem.Font := fontSpec
+	ShakeMode.Font := fontSpec
+	CfgSearch.Font := fontSpec
+}
+
+; Load settings
+LoadSettings() {
+	global DarkMode, SettingsFileName, AutoLowerGraphics, AutoZoomInCamera, AutoEnableCameraMode, AutoLookDownCamera, AutoBlurCamera
+	global RestartDelay, HoldRodCastDuration, WaitForBobberDelay, BaitDelay, Sera, NavigationKey, ShakeMode, ShakeFailsafe
+	global ClickShakeColorTolerance, ClickScanDelay, NavigationSpamDelay, Control, FishBarColorTolerance
+	global WhiteBarColorTolerance, ArrowColorTolerance, ScanDelay, SideBarRatio, SideDelay
+	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
+	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
+	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier
+	; read INI values and populate controls
+	lAutoLowerGraphics := IniReadVar(SettingsFileName, "General", "AutoLowerGraphics", "")
+	lAutoZoomInCamera := IniReadVar(SettingsFileName, "General", "AutoZoomInCamera", "")
+	lAutoEnableCameraMode := IniReadVar(SettingsFileName, "General", "AutoEnableCameraMode", "")
+	lAutoLookDownCamera := IniReadVar(SettingsFileName, "General", "AutoLookDownCamera", "")
+	lAutoBlurCamera := IniReadVar(SettingsFileName, "General", "AutoBlurCamera", "")
+
+	lRestartDelay := IniReadVar(SettingsFileName, "General", "RestartDelay", "")
+	lHoldRodCastDuration := IniReadVar(SettingsFileName, "General", "HoldRodCastDuration", "")
+	lWaitForBobberDelay := IniReadVar(SettingsFileName, "General", "WaitForBobberDelay", "")
+	lBaitDelay := IniReadVar(SettingsFileName, "General", "BaitDelay", "")
+	lSera := IniReadVar(SettingsFileName, "General", "Sera", "")
+
+	lNavigationKey := IniReadVar(SettingsFileName, "Shake", "NavigationKey", "")
+	lShakeMode := IniReadVar(SettingsFileName, "Shake", "ShakeMode", "")
+	lShakeFailsafe := IniReadVar(SettingsFileName, "Shake", "ShakeFailsafe", "")
+
+	lClickShakeColorTolerance := IniReadVar(SettingsFileName, "Shake", "ClickShakeColorTolerance", "")
+	lClickScanDelay := IniReadVar(SettingsFileName, "Shake", "ClickScanDelay", "")
+	lNavigationSpamDelay := IniReadVar(SettingsFileName, "Shake", "NavigationSpamDelay", "")
+
+	lControl := IniReadVar(SettingsFileName, "Minigame", "Control", "")
+	lFishBarColorTolerance := IniReadVar(SettingsFileName, "Minigame", "FishBarColorTolerance", "")
+	lWhiteBarColorTolerance := IniReadVar(SettingsFileName, "Minigame", "WhiteBarColorTolerance", "")
+	lArrowColorTolerance := IniReadVar(SettingsFileName, "Minigame", "ArrowColorTolerance", "")
+
+	lScanDelay := IniReadVar(SettingsFileName, "Minigame", "ScanDelay", "")
+	lSideBarRatio := IniReadVar(SettingsFileName, "Minigame", "SideBarRatio", "")
+	lSideDelay := IniReadVar(SettingsFileName, "Minigame", "SideDelay", "")
+
+	lStableRightMultiplier := IniReadVar(SettingsFileName, "Minigame", "StableRightMultiplier", "")
+	lStableRightDivision := IniReadVar(SettingsFileName, "Minigame", "StableRightDivision", "")
+	lStableLeftMultiplier := IniReadVar(SettingsFileName, "Minigame", "StableLeftMultiplier", "")
+	lStableLeftDivision := IniReadVar(SettingsFileName, "Minigame", "StableLeftDivision", "")
+
+	lUnstableRightMultiplier := IniReadVar(SettingsFileName, "Minigame", "UnstableRightMultiplier", "")
+	lUnstableRightDivision := IniReadVar(SettingsFileName, "Minigame", "UnstableRightDivision", "")
+	lUnstableLeftMultiplier := IniReadVar(SettingsFileName, "Minigame", "UnstableLeftMultiplier", "")
+	lUnstableLeftDivision := IniReadVar(SettingsFileName, "Minigame", "UnstableLeftDivision", "")
+
+	lRightAnkleBreakMultiplier := IniReadVar(SettingsFileName, "Minigame", "RightAnkleBreakMultiplier", "")
+	lLeftAnkleBreakMultiplier := IniReadVar(SettingsFileName, "Minigame", "LeftAnkleBreakMultiplier", "")
+
+	if FileExist(SettingsFileName) {
+		; populate control objects
+		AutoLowerGraphics.Value := lAutoLowerGraphics
+		AutoZoomInCamera.Value := lAutoZoomInCamera
+		AutoEnableCameraMode.Value := lAutoEnableCameraMode
+		AutoLookDownCamera.Value := lAutoLookDownCamera
+		AutoBlurCamera.Value := lAutoBlurCamera
+
+		RestartDelay.Value := lRestartDelay
+		HoldRodCastDuration.Value := lHoldRodCastDuration
+		WaitForBobberDelay.Value := lWaitForBobberDelay
+		BaitDelay.Value := lBaitDelay
+		Sera.Value := lSera
+
+		NavigationKey.Value := lNavigationKey
+		; Convert ShakeMode from text to index (1=Click, 2=Navigation)
+		if (lShakeMode = "Click")
+			ShakeMode.Value := 1
+		else if (lShakeMode = "Navigation") 
+			ShakeMode.Value := 2
+		else if (lShakeMode = "1")
+			ShakeMode.Value := 1
+		else if (lShakeMode = "2")
+			ShakeMode.Value := 2
+		else
+			ShakeMode.Value := 1  ; Default to Click
+		ShakeFailsafe.Value := lShakeFailsafe
+
+		ClickShakeColorTolerance.Value := lClickShakeColorTolerance
+		ClickScanDelay.Value := lClickScanDelay
+		NavigationSpamDelay.Value := lNavigationSpamDelay
+
+		Control.Value := lControl
+		FishBarColorTolerance.Value := lFishBarColorTolerance
+		WhiteBarColorTolerance.Value := lWhiteBarColorTolerance
+		ArrowColorTolerance.Value := lArrowColorTolerance
+
+		ScanDelay.Value := lScanDelay
+		SideBarRatio.Value := lSideBarRatio
+		SideDelay.Value := lSideDelay
+
+		StableRightMultiplier.Value := lStableRightMultiplier
+		StableRightDivision.Value := lStableRightDivision
+		StableLeftMultiplier.Value := lStableLeftMultiplier
+		StableLeftDivision.Value := lStableLeftDivision
+
+		UnstableRightMultiplier.Value := lUnstableRightMultiplier
+		UnstableRightDivision.Value := lUnstableRightDivision
+		UnstableLeftMultiplier.Value := lUnstableLeftMultiplier
+		UnstableLeftDivision.Value := lUnstableLeftDivision
+
+		RightAnkleBreakMultiplier.Value := lRightAnkleBreakMultiplier
+		LeftAnkleBreakMultiplier.Value := lLeftAnkleBreakMultiplier
+
+		; read theme and apply if present (apply dynamically instead of reloading GUI)
+		lDarkMode := IniReadVar(SettingsFileName, "General", "DarkMode", "")
+		if (lDarkMode != "") {
+			prevDark := DarkMode
+			DarkMode := lDarkMode
+			IniWriteVar(A_ScriptDir "\\default.ini", "General", "DarkMode", DarkMode)
+			ApplyTheme()
+		}
+
+	MainGui.Font := "s10 c" FontColor " Segoe UI"
+	MainGui.AlwaysOnTop := true
+	} else {
+		MainGui.AlwaysOnTop := true
+	}
+}
+
+ExitScript() {
+	ExitApp()
+}
+
+Launch() {
+	MainGui.AlwaysOnTop := false
+	MainGui.Hide()
+	lAutoLowerGraphics := IniReadVar(SettingsFileName, "General", "AutoLowerGraphics", "")
+	lAutoZoomInCamera := IniReadVar(SettingsFileName, "General", "AutoZoomInCamera", "")
+	lAutoEnableCameraMode := IniReadVar(SettingsFileName, "General", "AutoEnableCameraMode", "")
+	lAutoLookDownCamera := IniReadVar(SettingsFileName, "General", "AutoLookDownCamera", "")
+	lAutoBlurCamera := IniReadVar(SettingsFileName, "General", "AutoBlurCamera", "")
+	lRestartDelay := IniReadVar(SettingsFileName, "General", "RestartDelay", "")
+	lHoldRodCastDuration := IniReadVar(SettingsFileName, "General", "HoldRodCastDuration", "")
+	lWaitForBobberDelay := IniReadVar(SettingsFileName, "General", "WaitForBobberDelay", "")
+	lBaitDelay := IniReadVar(SettingsFileName, "General", "BaitDelay", "")
+	lSera := IniReadVar(SettingsFileName, "General", "Sera", "")
+
+	lNavigationKey := IniReadVar(SettingsFileName, "Shake", "NavigationKey", "")
+	lShakeMode := IniReadVar(SettingsFileName, "Shake", "ShakeMode", "")
+	; thanks @sai.kyo
+	ShakeMode := lShakeMode
+	lShakeFailsafe := IniReadVar(SettingsFileName, "Shake", "ShakeFailsafe", "")
+
+	lClickShakeColorTolerance := IniReadVar(SettingsFileName, "Shake", "ClickShakeColorTolerance", "")
+	lClickScanDelay := IniReadVar(SettingsFileName, "Shake", "ClickScanDelay", "")
+	lNavigationSpamDelay := IniReadVar(SettingsFileName, "Shake", "NavigationSpamDelay", "")
+
+	lControl := IniReadVar(SettingsFileName, "Minigame", "Control", "")
+	lFishBarColorTolerance := IniReadVar(SettingsFileName, "Minigame", "FishBarColorTolerance", "")
+	lWhiteBarColorTolerance := IniReadVar(SettingsFileName, "Minigame", "WhiteBarColorTolerance", "")
+	lArrowColorTolerance := IniReadVar(SettingsFileName, "Minigame", "ArrowColorTolerance", "")
+
+	lScanDelay := IniReadVar(SettingsFileName, "Minigame", "ScanDelay", "")
+	lSideBarRatio := IniReadVar(SettingsFileName, "Minigame", "SideBarRatio", "")
+	lSideDelay := IniReadVar(SettingsFileName, "Minigame", "SideDelay", "")
+
+	lStableRightMultiplier := IniReadVar(SettingsFileName, "Minigame", "StableRightMultiplier", "")
+	lStableRightDivision := IniReadVar(SettingsFileName, "Minigame", "StableRightDivision", "")
+	lStableLeftMultiplier := IniReadVar(SettingsFileName, "Minigame", "StableLeftMultiplier", "")
+	lStableLeftDivision := IniReadVar(SettingsFileName, "Minigame", "StableLeftDivision", "")
+
+	lUnstableRightMultiplier := IniReadVar(SettingsFileName, "Minigame", "UnstableRightMultiplier", "")
+	lUnstableRightDivision := IniReadVar(SettingsFileName, "Minigame", "UnstableRightDivision", "")
+	lUnstableLeftMultiplier := IniReadVar(SettingsFileName, "Minigame", "UnstableLeftMultiplier", "")
+	lUnstableLeftDivision := IniReadVar(SettingsFileName, "Minigame", "UnstableLeftDivision", "")
+    
+	lRightAnkleBreakMultiplier := IniReadVar(SettingsFileName, "Minigame", "RightAnkleBreakMultiplier", "")
+	lLeftAnkleBreakMultiplier := IniReadVar(SettingsFileName, "Minigame", "LeftAnkleBreakMultiplier", "")
+	
+	; Validate ShakeMode before proceeding
+	if (ShakeMode != "Navigation" and ShakeMode != "Click")
 	{
-		Gui, Color, 0x1E1E1E
-	FontColor := "FFFFFF"
-	Gui, Font, s12 c%FontColor%, Segoe UI
-	Gui, Font, s10 c%FontColor%, Segoe UI
-		GuiControl,, DarkModeBtn, Light Mode
+		; Silent exit if shake mode invalid
+		ExitApp()
+	}
+	
+	WinActivate("Roblox")
+	if WinActive("ahk_exe RobloxPlayerBeta.exe") || WinActive("ahk_exe eurotruck2.exe")
+	{
+		; Resize Roblox to standard 1920x1080 resolution for proper macro functionality
+		WinMove(0, 0, 1920, 1080, "Roblox")
+		Sleep 500  ; Wait for window to resize
+		WinActivate("Roblox")
 	}
 	else
 	{
-		Gui, Color, 0xF5F5F5
-	FontColor := "000000"
-	Gui, Font, s12 c%FontColor%, Segoe UI
-	Gui, Font, s10 c%FontColor%, Segoe UI
-		GuiControl,, DarkModeBtn, Dark Mode
+		; Silent exit if required app not active
+		ExitApp()
 	}
-
-	; Reapply black text to edit-like controls for readability
-	gosub, SetEditFonts
-	Return
-
-SetEditFonts:
-	; Force edit and dropdown controls' text color to black so they remain visible on dark backgrounds
-	Gui, Font, s10 c000000, Segoe UI
-	GuiControl, Font, RestartDelay
-	GuiControl, Font, HoldRodCastDuration
-	GuiControl, Font, WaitForBobberDelay
-	GuiControl, Font, BaitDelay
-	GuiControl, Font, NavigationKey
-	GuiControl, Font, ShakeFailsafe
-	GuiControl, Font, ClickShakeColorTolerance
-	GuiControl, Font, ClickScanDelay
-	GuiControl, Font, NavigationSpamDelay
-	GuiControl, Font, Control
-	GuiControl, Font, FishBarColorTolerance
-	GuiControl, Font, WhiteBarColorTolerance
-	GuiControl, Font, ArrowColorTolerance
-	GuiControl, Font, ScanDelay
-	GuiControl, Font, SideBarRatio
-	GuiControl, Font, SideDelay
-	GuiControl, Font, StableRightMultiplier
-	GuiControl, Font, StableRightDivision
-	GuiControl, Font, StableLeftMultiplier
-	GuiControl, Font, StableLeftDivision
-	GuiControl, Font, UnstableRightMultiplier
-	GuiControl, Font, UnstableRightDivision
-	GuiControl, Font, UnstableLeftMultiplier
-	GuiControl, Font, UnstableLeftDivision
-	GuiControl, Font, RightAnkleBreakMultiplier
-	GuiControl, Font, LeftAnkleBreakMultiplier
-	GuiControl, Font, DropItem
-	GuiControl, Font, ShakeMode
-	Gui, Font, s10 c%FontColor%, Segoe UI
-Return
-
-; Load settings
-LoadSettings:
-	IniRead, lAutoLowerGraphics, %SettingsFileName%, General, AutoLowerGraphics
-	IniRead, lAutoZoomInCamera, %SettingsFileName%, General, AutoZoomInCamera
-	IniRead, lAutoEnableCameraMode, %SettingsFileName%, General, AutoEnableCameraMode
-	IniRead, lAutoLookDownCamera, %SettingsFileName%, General, AutoLookDownCamera
-	IniRead, lAutoBlurCamera, %SettingsFileName%, General, AutoBlurCamera
-
-	IniRead, lRestartDelay, %SettingsFileName%, General, RestartDelay
-	IniRead, lHoldRodCastDuration, %SettingsFileName%, General, HoldRodCastDuration
-	IniRead, lWaitForBobberDelay, %SettingsFileName%, General, WaitForBobberDelay
-	IniRead, lBaitDelay, %SettingsFileName%, General, BaitDelay
-	IniRead, lSera, %SettingsFileName%, General, Sera
-
-	IniRead, lNavigationKey, %SettingsFileName%, Shake, NavigationKey
-	IniRead, lShakeMode, %SettingsFileName%, Shake, ShakeMode
-	IniRead, lShakeFailsafe, %SettingsFileName%, Shake, ShakeFailsafe
-
-	IniRead, lClickShakeColorTolerance, %SettingsFileName%, Shake, ClickShakeColorTolerance
-	IniRead, lClickScanDelay, %SettingsFileName%, Shake, ClickScanDelay
-	IniRead, lNavigationSpamDelay, %SettingsFileName%, Shake, NavigationSpamDelay
-
-	IniRead, lControl, %SettingsFileName%, Minigame, Control
-	IniRead, lFishBarColorTolerance, %SettingsFileName%, Minigame, FishBarColorTolerance
-	IniRead, lWhiteBarColorTolerance, %SettingsFileName%, Minigame, WhiteBarColorTolerance
-	IniRead, lArrowColorTolerance, %SettingsFileName%, Minigame, ArrowColorTolerance
-
-	IniRead, lScanDelay, %SettingsFileName%, Minigame, ScanDelay
-	IniRead, lSideBarRatio, %SettingsFileName%, Minigame, SideBarRatio
-	IniRead, lSideDelay, %SettingsFileName%, Minigame, SideDelay
-
-	IniRead, lStableRightMultiplier, %SettingsFileName%, Minigame, StableRightMultiplier
-	IniRead, lStableRightDivision, %SettingsFileName%, Minigame, StableRightDivision
-	IniRead, lStableLeftMultiplier, %SettingsFileName%, Minigame, StableLeftMultiplier
-	IniRead, lStableLeftDivision, %SettingsFileName%, Minigame, StableLeftDivision
-
-	IniRead, lUnstableRightMultiplier, %SettingsFileName%, Minigame, UnstableRightMultiplier
-	IniRead, lUnstableRightDivision, %SettingsFileName%, Minigame, UnstableRightDivision
-	IniRead, lUnstableLeftMultiplier, %SettingsFileName%, Minigame, UnstableLeftMultiplier
-	IniRead, lUnstableLeftDivision, %SettingsFileName%, Minigame, UnstableLeftDivision
-
-	IniRead, lRightAnkleBreakMultiplier, %SettingsFileName%, Minigame, RightAnkleBreakMultiplier
-	IniRead, lLeftAnkleBreakMultiplier, %SettingsFileName%, Minigame, LeftAnkleBreakMultiplier
-
 	
-	; Update GUI
-	if FileExist(SettingsFileName) {
-	Gui, Submit, NoHide
-	GuiControl,, AutoLowerGraphics, %lAutoLowerGraphics%
-	GuiControl,, AutoZoomInCamera, %lAutoZoomInCamera%
-	GuiControl,, AutoEnableCameraMode, %lAutoEnableCameraMode%
-	GuiControl,, AutoLookDownCamera, %lAutoLookDownCamera%
-	GuiControl,, AutoBlurCamera, %lAutoBlurCamera%
-
-	GuiControl,, RestartDelay, %lRestartDelay%
-	GuiControl,, HoldRodCastDuration, %lHoldRodCastDuration%
-	GuiControl,, WaitForBobberDelay, %lWaitForBobberDelay%
-	GuiControl,, BaitDelay, %lBaitDelay%
-	GuiControl,, Sera, %lSera%
-
-	GuiControl,, NavigationKey, %lNavigationKey%
-	GuiControl,Choose, ShakeMode, %lShakeMode%
-	GuiControl,, ShakeFailsafe, %lShakeFailsafe%
-
-	GuiControl,, ClickShakeColorTolerance, %lClickShakeColorTolerance%
-	GuiControl,, ClickScanDelay, %lClickScanDelay%
-	GuiControl,, NavigationSpamDelay, %lNavigationSpamDelay%
-
-	GuiControl,, Control, %lControl%
-	GuiControl,, FishBarColorTolerance, %lFishBarColorTolerance%
-	GuiControl,, WhiteBarColorTolerance, %lWhiteBarColorTolerance%
-	GuiControl,, ArrowColorTolerance, %lArrowColorTolerance%
-
-	GuiControl,, ScanDelay, %lScanDelay%
-	GuiControl,, SideBarRatio, %lSideBarRatio%
-	GuiControl,, SideDelay, %lSideDelay%
-
-	GuiControl,, StableRightMultiplier, %lStableRightMultiplier%
-	GuiControl,, StableRightDivision, %lStableRightDivision%
-	GuiControl,, StableLeftMultiplier, %lStableLeftMultiplier%
-	GuiControl,, StableLeftDivision, %lStableLeftDivision%
-
-	GuiControl,, UnstableRightMultiplier, %lUnstableRightMultiplier%
-	GuiControl,, UnstableRightDivision, %lUnstableRightDivision%
-	GuiControl,, UnstableLeftMultiplier, %lUnstableLeftMultiplier%
-	GuiControl,, UnstableLeftDivision, %lUnstableLeftDivision%
-
-	GuiControl,, RightAnkleBreakMultiplier, %lRightAnkleBreakMultiplier%
-	GuiControl,, LeftAnkleBreakMultiplier, %lLeftAnkleBreakMultiplier%
-
-	; read theme and apply if present (apply dynamically instead of reloading GUI)
-	IniRead, lDarkMode, %SettingsFileName%, General, DarkMode
-	if (lDarkMode != "") {
-		prevDark := DarkMode
-		DarkMode := lDarkMode
-		; persist chosen theme so next startup uses it
-		IniWrite, %DarkMode%, %A_ScriptDir%\default.ini, General, DarkMode
-		; apply theme in-place without restarting the script
-		gosub, ApplyTheme
+	if (A_ScreenDPI != 96) {
+		; Silent exit when DPI not 96
+		ExitApp()
 	}
-
-	; Reapply font color to controls so text updates immediately
-	Gui, Font, s10 c%FontColor%, Segoe UI
-
-	; Done
-			; Loaded (silent)
-			Gui, +AlwaysOnTop
-	} else {
-		; Failed to load (silent)
-		Gui, +AlwaysOnTop
-	}
-	; do not auto-save after loading — user should Save manually if desired
-Return
-
-ExitScript:
-    ExitApp
-Return
-
-GuiClose:
-ExitApp
-
-;====================================================================================================;
-Launch:
-Gui, -AlwaysOnTop
-Gui, Hide
-	IniRead, lAutoLowerGraphics, %SettingsFileName%, General, AutoLowerGraphics
-	IniRead, lAutoZoomInCamera, %SettingsFileName%, General, AutoZoomInCamera
-	IniRead, lAutoEnableCameraMode, %SettingsFileName%, General, AutoEnableCameraMode
-	IniRead, lAutoLookDownCamera, %SettingsFileName%, General, AutoLookDownCamera
-	IniRead, lAutoBlurCamera, %SettingsFileName%, General, AutoBlurCamera
-	IniRead, lRestartDelay, %SettingsFileName%, General, RestartDelay
-	IniRead, lHoldRodCastDuration, %SettingsFileName%, General, HoldRodCastDuration
-	IniRead, lWaitForBobberDelay, %SettingsFileName%, General, WaitForBobberDelay
-	IniRead, lBaitDelay, %SettingsFileName%, General, BaitDelay
-	IniRead, lSera, %SettingsFileName%, General, Sera
-
-	IniRead, lNavigationKey, %SettingsFileName%, Shake, NavigationKey
-	IniRead, lShakeMode, %SettingsFileName%, Shake, ShakeMode
-	; thanks @sai.kyo
-	ShakeMode := lShakeMode
-	IniRead, lShakeFailsafe, %SettingsFileName%, Shake, ShakeFailsafe
-
-	IniRead, lClickShakeColorTolerance, %SettingsFileName%, Shake, ClickShakeColorTolerance
-	IniRead, lClickScanDelay, %SettingsFileName%, Shake, ClickScanDelay
-	IniRead, lNavigationSpamDelay, %SettingsFileName%, Shake, NavigationSpamDelay
-
-	IniRead, lControl, %SettingsFileName%, Minigame, Control
-	IniRead, lFishBarColorTolerance, %SettingsFileName%, Minigame, FishBarColorTolerance
-	IniRead, lWhiteBarColorTolerance, %SettingsFileName%, Minigame, WhiteBarColorTolerance
-	IniRead, lArrowColorTolerance, %SettingsFileName%, Minigame, ArrowColorTolerance
-
-	IniRead, lScanDelay, %SettingsFileName%, Minigame, ScanDelay
-	IniRead, lSideBarRatio, %SettingsFileName%, Minigame, SideBarRatio
-	IniRead, lSideDelay, %SettingsFileName%, Minigame, SideDelay
-
-	IniRead, lStableRightMultiplier, %SettingsFileName%, Minigame, StableRightMultiplier
-	IniRead, lStableRightDivision, %SettingsFileName%, Minigame, StableRightDivision
-	IniRead, lStableLeftMultiplier, %SettingsFileName%, Minigame, StableLeftMultiplier
-	IniRead, lStableLeftDivision, %SettingsFileName%, Minigame, StableLeftDivision
-
-	IniRead, lUnstableRightMultiplier, %SettingsFileName%, Minigame, UnstableRightMultiplier
-	IniRead, lUnstableRightDivision, %SettingsFileName%, Minigame, UnstableRightDivision
-	IniRead, lUnstableLeftMultiplier, %SettingsFileName%, Minigame, UnstableLeftMultiplier
-	IniRead, lUnstableLeftDivision, %SettingsFileName%, Minigame, UnstableLeftDivision
 	
-	IniRead, lRightAnkleBreakMultiplier, %SettingsFileName%, Minigame, RightAnkleBreakMultiplier
-	IniRead, lLeftAnkleBreakMultiplier, %SettingsFileName%, Minigame, LeftAnkleBreakMultiplier
-	
-if (ShakeMode != "Navigation" and ShakeMode != "Click")
-	{
-	; Silent exit if shake mode invalid
-	exitapp
-	}
-;====================================================================================================;
-
-WinActivate, Roblox
-if WinActive("ahk_exe RobloxPlayerBeta.exe") || WinActive("ahk_exe eurotruck2.exe")
-	{
-	; Resize Roblox to standard 1920x1080 resolution for proper macro functionality
-	WinMove, Roblox,, 0, 0, 1920, 1080
-	Sleep, 500  ; Wait for window to resize
-	WinActivate, Roblox
-	}
-else
-	{
-	; Silent exit if required app not active
-	exitapp
-	}
-
-if (A_ScreenDPI != 96) {
-	; Silent exit when DPI not 96
-	exitapp
+	Send("{lbutton up}")
+	Send("{rbutton up}")
+	Send("{shift up}")
 }
 
 ;====================================================================================================;
 
-send {lbutton up}
-send {rbutton up}
-send {shift up}
+Calculations() {
+; AHK v2: replace WinGetActiveStats with explicit calls
+Title := WinGetTitle("A")
+WinGetPos &WindowLeft, &WindowTop, &WindowWidth, &WindowHeight, "A"
 
-;====================================================================================================;
-
-Calculations:
-WinGetActiveStats, Title, WindowWidth, WindowHeight, WindowLeft, WindowTop
+; Declare global variables that will be used outside this function
+global TooltipX, Tooltip1, Tooltip2, Tooltip3, Tooltip4, Tooltip5, Tooltip6, Tooltip7, Tooltip8, Tooltip9, Tooltip10
+global Tooltip11, Tooltip12, Tooltip13, Tooltip14, Tooltip15, Tooltip16, Tooltip17, Tooltip18, Tooltip19, Tooltip20
+global CameraCheckLeft, CameraCheckRight, CameraCheckTop, CameraCheckBottom
+global ClickShakeLeft, ClickShakeRight, ClickShakeTop, ClickShakeBottom
+global FishBarLeft, FishBarRight, FishBarTop, FishBarBottom
+global ProgressAreaLeft, ProgressAreaRight, ProgressAreaTop, ProgressAreaBottom
+global LookDownX, LookDownY, PixelScaling, ResolutionScaling, FishBarTooltipHeight
+global WhiteBarSize, Action, Direction, DistanceFactor
+global HalfBarSize, Deadzone, Deadzone2, MaxLeftBar, MaxRightBar, EndMinigame, FishX
 
 CameraCheckLeft := WindowWidth/2.8444
 CameraCheckRight := WindowWidth/1.5421
@@ -741,9 +833,6 @@ ResolutionScaling := WindowWidth / (WindowWidth * 2.37)
 LookDownX := WindowWidth/2
 LookDownY := WindowHeight/4
 
-runtimeS := 0
-runtimeM := 0
-runtimeH := 0
 PixelScaling := 1034/(FishBarRight-FishBarLeft)
 
 TooltipX := WindowWidth/20
@@ -768,710 +857,758 @@ Tooltip18 := (WindowHeight/2)+(20*8)
 Tooltip19 := (WindowHeight/2)+(20*9)
 Tooltip20 := (WindowHeight/2)+(20*10)
 
-SplitPath, SettingsFileName, FileNameNoExt
-StringTrimRight, FileNameNoExt, FileNameNoExt, 4
-tooltip, Made By AsphaltCake - this is remasterd version, %TooltipX%, %Tooltip1%, 1
-tooltip, Fisch Macro V12 - Config: %FileNameNoExt%, %TooltipX%, %Tooltip2%, 2
-tooltip, Runtime: 0h 0m 0s, %TooltipX%, %Tooltip3%, 3
+SplitPath(SettingsFileName, &FileNameNoExt)
+; remove extension if present
+FileNameNoExt := RegExReplace(FileNameNoExt, '\.[^\.]+$', '')
+Tooltip('Made By AsphaltCake - this is remasterd version', TooltipX, Tooltip1)
+Tooltip('Fisch Macro V12 - Config: ' . FileNameNoExt, TooltipX, Tooltip2)
+Tooltip('Runtime: 0h 0m 0s', TooltipX, Tooltip3)
 
-tooltip, Press "P" to Start, %TooltipX%, %Tooltip4%, 4
-tooltip, Press "O" to Reload, %TooltipX%, %Tooltip5%, 5
-tooltip, Press "M" to Exit, %TooltipX%, %Tooltip6%, 6
+Tooltip('Press "P" to Start', TooltipX, Tooltip4)
+Tooltip('Press "O" to Reload', TooltipX, Tooltip5)
+Tooltip('Press "M" to Exit', TooltipX, Tooltip6)
 
-if (AutoLowerGraphics == true)
-	{
-	tooltip, AutoLowerGraphics: true, %TooltipX%, %Tooltip8%, 8
-	}
+if (AutoLowerGraphics)
+	Tooltip("AutoLowerGraphics: true", TooltipX, Tooltip8)
 else
-	{
-	tooltip, AutoLowerGraphics: false, %TooltipX%, %Tooltip8%, 8
-	}
-	
-if (AutoEnableCameraMode == true)
-	{
-	tooltip, AutoEnableCameraMode: true, %TooltipX%, %Tooltip9%, 9
-	}
+	Tooltip("AutoLowerGraphics: false", TooltipX, Tooltip8)
+
+if (AutoEnableCameraMode)
+	Tooltip("AutoEnableCameraMode: true", TooltipX, Tooltip9)
 else
-	{
-	tooltip, AutoEnableCameraMode: false, %TooltipX%, %Tooltip9%, 9
-	}
-	
-if (AutoZoomInCamera == true)
-	{
-	tooltip, AutoZoomInCamera: true, %TooltipX%, %Tooltip10%, 10
-	}
+	Tooltip("AutoEnableCameraMode: false", TooltipX, Tooltip9)
+
+if (AutoZoomInCamera)
+	Tooltip("AutoZoomInCamera: true", TooltipX, Tooltip10)
 else
-	{
-	tooltip, AutoZoomInCamera: false, %TooltipX%, %Tooltip10%, 10
-	}
-	
-if (AutoLookDownCamera == true)
-	{
-	tooltip, AutoLookDownCamera: true, %TooltipX%, %Tooltip11%, 11
-	}
+	Tooltip("AutoZoomInCamera: false", TooltipX, Tooltip10)
+
+if (AutoLookDownCamera)
+	Tooltip("AutoLookDownCamera: true", TooltipX, Tooltip11)
 else
-	{
-	tooltip, AutoLookDownCamera: false, %TooltipX%, %Tooltip11%, 11
-	}
-	
-if (AutoBlurCamera == true)
-	{
-	tooltip, AutoBlurCamera: true, %TooltipX%, %Tooltip12%, 12
-	}
+	Tooltip("AutoLookDownCamera: false", TooltipX, Tooltip11)
+
+if (AutoBlurCamera)
+	Tooltip("AutoBlurCamera: true", TooltipX, Tooltip12)
 else
-	{
-	tooltip, AutoBlurCamera: false, %TooltipX%, %Tooltip12%, 12
-	}
+	Tooltip("AutoBlurCamera: false", TooltipX, Tooltip12)
 
-tooltip, Navigation Key: "%NavigationKey%", %TooltipX%, %Tooltip14%, 14
+Tooltip("Navigation Key: " . NavigationKey.Text, TooltipX, Tooltip14)
 
-if (ShakeMode == "Click")
-	{
-	tooltip, Shake Mode: "Click", %TooltipX%, %Tooltip16%, 16
-	}
+if (ShakeMode.Text == "Click")
+	Tooltip('Shake Mode: "Click"', TooltipX, Tooltip16)
 else
-	{
-	tooltip, Shake Mode: "Navigation", %TooltipX%, %Tooltip16%, 16
-	}
-return
+	Tooltip('Shake Mode: "Navigation"', TooltipX, Tooltip16)
 
-;====================================================================================================;
-
-; Thanks Lunar
-runtime:
-    runtimeS++
-    if (runtimeS >= 60)
-    {
-        runtimeS := 0
-        runtimeM++
-    }
-    if (runtimeM >= 60)
-    {
-        runtimeM := 0
-        runtimeH++
-    }
-
-    tooltip, Runtime: %runtimeH%h %runtimeM%m %runtimeS%s, %TooltipX%, %Tooltip3%, 3
-
-    if (WinExist("ahk_exe RobloxPlayerBeta.exe") || WinExist("ahk_exe eurotruck2.exe")) {
-        if (!WinActive("ahk_exe RobloxPlayerBeta.exe") || !WinActive("ahk_exe eurotruck2.exe")) {
-            WinActivate
-        }
-    }
-    else {
-        exitapp
-    }
-return
-
-;====================================================================================================;
-
-#IfWinActive, ahk_class AutoHotkeyGUI
-; Hotkeys disabled when GUI is active
-$o::return
-$m::return  
-$p::return
-#IfWinActive
-
-#IfWinNotActive, ahk_class AutoHotkeyGUI
-; Hotkeys enabled when GUI is not active (macro running)
-$o::Reload
-$m::ExitApp
-$p:: goto StartCalculation
-#IfWinNotActive
-
-StartCalculation:
-;====================================================================================================;
-
-gosub, Calculations
-settimer, runtime, 1000
-
-tooltip, Press "O" to Reload, %TooltipX%, %Tooltip4%, 4
-tooltip, Press "M" to Exit, %TooltipX%, %Tooltip5%, 5
-tooltip, Do NOT use Roblox in Fullscreen, %TooltipX%, %Tooltip6%, 6
-tooltip, , , , 10
-tooltip, , , , 11
-tooltip, , , , 12
-tooltip, , , , 14
-tooltip, , , , 16
-
-if (ShakeMode == "Navigation")
-{
-	send {lshift}
-	AutoBlurCamera := false
 }
 
-tooltip, Current Task: AutoLowerGraphics, %TooltipX%, %Tooltip7%, 7
-tooltip, F10 Count: 0/20, %TooltipX%, %Tooltip9%, 9
-f10counter := 0
-if (AutoLowerGraphics == true)
+;====================================================================================================;
+
+StartCalculation()
+{
+	global f10counter, TooltipX, Tooltip8, Tooltip9
+	Calculations()
+	SetTimer(runtime, 1000)
+
+	; --- Main macro actions ---
+	f10counter := 0
+	Send("{shift down}")
+	Tooltip("Action: Hold Shift", TooltipX, Tooltip8)
+	Sleep 50
+	loop 20
 	{
-	send {shift}
-	tooltip, Action: Press Shift, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	send {shift down}
-	tooltip, Action: Hold Shift, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	loop, 20
-		{
 		f10counter++
-		tooltip, F10 Count: %f10counter%/20, %TooltipX%, %Tooltip9%, 9
-		send {f10}
-		tooltip, Action: Press F10, %TooltipX%, %Tooltip8%, 8
-		sleep 50
+		Tooltip("F10 Count: " . f10counter . "/20", TooltipX, Tooltip9)
+		Send "{f10}"
+		Tooltip("Action: Press F10", TooltipX, Tooltip8)
+		Sleep 50
+	}
+	Send("{shift up}")
+	Tooltip("Action: Release Shift", TooltipX, Tooltip8)
+	Sleep 50
+
+	Tooltip("Current Task: AutoZoomInCamera", TooltipX, Tooltip7)
+	Tooltip("Scroll In: 0/20", TooltipX, Tooltip9)
+	Tooltip("Scroll Out: 0/1", TooltipX, Tooltip10)
+	scrollcounter := 0
+
+	if (AutoZoomInCamera == true)
+	{
+		Sleep 50
+		loop 20
+		{
+			scrollcounter++
+			Tooltip("Scroll In: " . scrollcounter . "/20", TooltipX, Tooltip9)
+			Send "{wheelup}"
+			Tooltip("Action: Scroll In", TooltipX, Tooltip8)
+			Sleep 50
 		}
-	send {shift up}
-	tooltip, Action: Release Shift, %TooltipX%, %Tooltip8%, 8
-	sleep 50
+		Send("{wheeldown}")
+		Tooltip("Scroll Out: 1/1", TooltipX, Tooltip10)
+		Tooltip("Action: Scroll Out", TooltipX, Tooltip8)
+		AutoZoomDelay := AutoZoomDelay*5
+		Sleep 50
 	}
 
-tooltip, Current Task: AutoZoomInCamera, %TooltipX%, %Tooltip7%, 7
-tooltip, Scroll In: 0/20, %TooltipX%, %Tooltip9%, 9
-tooltip, Scroll Out: 0/1, %TooltipX%, %Tooltip10%, 10
-scrollcounter := 0
-if (AutoZoomInCamera == true)
+	Tooltip("Current Task: AutoEnableCameraMode", TooltipX, Tooltip7)
+	Tooltip("Right Count: 0/10", TooltipX, Tooltip9)
+	rightcounter := 0
+	if (AutoEnableCameraMode == true)
 	{
-	sleep 50
-	loop, 20
+		if !PixelSearch(&foundX, &foundY, CameraCheckLeft, CameraCheckTop, CameraCheckRight, CameraCheckBottom, 0xFFFFFF, 0)
 		{
-		scrollcounter++
-		tooltip, Scroll In: %scrollcounter%/20, %TooltipX%, %Tooltip9%, 9
-		send {wheelup}
-		tooltip, Action: Scroll In, %TooltipX%, %Tooltip8%, 8
-		sleep 50
-		}
-	send {wheeldown}
-	tooltip, Scroll Out: 1/1, %TooltipX%, %Tooltip10%, 10
-	tooltip, Action: Scroll Out, %TooltipX%, %Tooltip8%, 8
-	AutoZoomDelay := AutoZoomDelay*5
-	sleep 50
-	}
-
-RestartMacro:
-sleep 100
-if (AutoBlurCamera == true)
-	{
-		if (EndMinigame == true or NavigationFail == true)
-		{
-			send ``
-		}
-	}
-tooltip, , , , 10
-
-tooltip, Current Task: AutoEnableCameraMode, %TooltipX%, %Tooltip7%, 7
-tooltip, Right Count: 0/10, %TooltipX%, %Tooltip9%, 9
-rightcounter := 0
-if (AutoEnableCameraMode == true)
-	{
-	PixelSearch, , , CameraCheckLeft, CameraCheckTop, CameraCheckRight, CameraCheckBottom, 0xFFFFFF, 0, Fast
-	if !ErrorLevel
-		{
-		sleep 50
-		if (NavigationFail == true)
-		{
-			sleep 50
-			send {%NavigationKey%}
-			sleep 50
-			send {2}
-			sleep 50
-			NavigationFail := false
-		}
-		sleep 50
-		send {2}
-		tooltip, Action: Presss 2, %TooltipX%, %Tooltip8%, 8
-		sleep 50
-		send {1}
-		tooltip, Action: Press 1, %TooltipX%, %Tooltip8%, 8
-		sleep 50
-		send {%NavigationKey%}
-		tooltip, Action: Press %NavigationKey%, %TooltipX%, %Tooltip8%, 8
-		sleep 50
-		loop, 10
+			Sleep 50
+			if (NavigationFail == true)
 			{
-			rightcounter++
-			tooltip, Right Count: %rightcounter%/10, %TooltipX%, %Tooltip9%, 9
-			send {right}
-			tooltip, Action: Press Right, %TooltipX%, %Tooltip8%, 8
-			sleep 150
+				Sleep 50
+				Send "{" . NavigationKey . "}"
+				Sleep 50
+				Send "{2}"
+				Sleep 50
+				NavigationFail := false
 			}
-		send {enter}
-		tooltip, Action: Press Enter, %TooltipX%, %Tooltip8%, 8
-		sleep 50
+			Sleep 50
+			Send "{2}"
+			Tooltip("Action: Presss 2", TooltipX, Tooltip8)
+			Sleep 50
+			Send "{1}"
+			Tooltip("Action: Press 1", TooltipX, Tooltip8)
+			Sleep 50
+			Send "{" . NavigationKey . "}"
+			Tooltip("Action: Press " . NavigationKey, TooltipX, Tooltip8)
+			Sleep 50
+			loopCount := 10
+			while (loopCount > 0)
+			{
+				rightcounter++
+				Tooltip("Right Count: " . rightcounter . "/10", TooltipX, Tooltip9)
+				Send "{right}"
+				Tooltip("Action: Press Right", TooltipX, Tooltip8)
+				Sleep 150
+				loopCount--
+			}
+			Send "{enter}"
+			Tooltip("Action: Press Enter", TooltipX, Tooltip8)
+			Sleep 50
 		}
 	}
 
-tooltip, , , , 9
-tooltip, Current Task: AutoLookDownCamera, %TooltipX%, %Tooltip7%, 7
-if (AutoLookDownCamera == true)
+	Tooltip("Current Task: AutoLookDownCamera", TooltipX, Tooltip7)
+	if (AutoLookDownCamera)
 	{
-	send {rbutton up}
-	sleep 50
-	mousemove, LookDownX, LookDownY
-	tooltip, Action: Position Mouse, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	send {rbutton down}
-	tooltip, Action: Hold Right Click, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	DllCall("mouse_event", "UInt", 0x01, "UInt", 0, "UInt", 10000)
-	tooltip, Action: Move Mouse Down, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	send {rbutton up}
-	tooltip, Action: Release Right Click, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	mousemove, LookDownX, LookDownY
-	tooltip, Action: Position Mouse, %TooltipX%, %Tooltip8%, 8
-	sleep 50
-	}
-	
-tooltip, Current Task: AutoBlurCamera, %TooltipX%, %Tooltip7%, 7	
-if (AutoBlurCamera == true)
-	{
-	sleep 50
-	send ``
-	tooltip, Action: Press ``, %TooltipX%, %Tooltip8%, 8
-	sleep 50
+		Send "{rbutton up}"
+		Sleep 50
+		MouseMove(LookDownX, LookDownY)
+		Tooltip("Action: Position Mouse", TooltipX, Tooltip8)
+		Sleep 50
+		Send "{rbutton down}"
+		Tooltip("Action: Hold Right Click", TooltipX, Tooltip8)
+		Sleep 50
+		DllCall("mouse_event", "UInt", 0x01, "UInt", 0, "UInt", 10000)
+		Tooltip("Action: Move Mouse Down", TooltipX, Tooltip8)
+		Sleep 50
+		Send "{rbutton up}"
+		Tooltip("Action: Release Right Click", TooltipX, Tooltip8)
+		Sleep 50
+		MouseMove(LookDownX, LookDownY)
+		Tooltip("Action: Position Mouse", TooltipX, Tooltip8)
+		Sleep 50
 	}
 
-tooltip, Current Task: Casting Rod, %TooltipX%, %Tooltip7%, 7
-send {lbutton down}
-tooltip, Action: Casting For %HoldRodCastDuration%ms, %TooltipX%, %Tooltip8%, 8
-sleep %HoldRodCastDuration%
-send {lbutton up}
-tooltip, Action: Waiting For Bobber (%WaitForBobberDelay%ms), %TooltipX%, %Tooltip8%, 8
-sleep %WaitForBobberDelay%
-
-if (ShakeMode == "Click")
-goto ClickShakeMode
-else if (ShakeMode == "Navigation")
-goto NavigationShakeMode
-
-;====================================================================================================;
-
-ClickShakeFailsafe:
-ClickFailsafeCount++
-tooltip, Failsafe: %ClickFailsafeCount%/%ShakeFailsafe%, %TooltipX%, %Tooltip14%, 14
-if (ClickFailsafeCount >= ShakeFailsafe)
+	Tooltip("Current Task: AutoBlurCamera", TooltipX, Tooltip7)
+	if (AutoBlurCamera)
 	{
-	settimer, ClickShakeFailsafe, off
-	ForceReset := true
+		Sleep 50
+		Send(Chr(96))
+		Tooltip("Action: Press " . Chr(96), TooltipX, Tooltip8)
+		Sleep 50
 	}
-return
 
-ClickShakeMode:
+	Tooltip("Current Task: Casting Rod", TooltipX, Tooltip7)
+	Send "{lbutton down}"
+	Tooltip("Action: Casting For " . HoldRodCastDuration . "ms", TooltipX, Tooltip8)
+	Sleep HoldRodCastDuration
+	Send "{lbutton up}"
+	Tooltip("Action: Waiting For Bobber (" . WaitForBobberDelay . "ms)", TooltipX, Tooltip8)
+	Sleep WaitForBobberDelay
 
-tooltip, Current Task: Shaking, %TooltipX%, %Tooltip7%, 7
-tooltip, Looking for White pixels, %TooltipX%, %Tooltip8%, 8
-tooltip, Click X: None, %TooltipX%, %Tooltip9%, 9
-tooltip, Click Y: None, %TooltipX%, %Tooltip10%, 10
-tooltip, Click Count: 0, %TooltipX%, %Tooltip11%, 11
+	if (ShakeMode == "Click")
+		ClickShakeMode()
+	else if (ShakeMode == "Navigation")
+		NavigationShakeMode()
 
-tooltip, Failsafe: 0/%ShakeFailsafe%, %TooltipX%, %Tooltip14%, 14
+}
 
-ClickFailsafeCount := 0
-ClickCount := 0
-ClickShakeRepeatBypassCounter := 0
-MemoryX := 0
-MemoryY := 0
-ForceReset := false
-
-settimer, ClickShakeFailsafe, 1000
-
-ClickShakeModeRedo:
-if (ForceReset == true)
+runtime()
+{
+	global runtimeS, runtimeM, runtimeH, TooltipX, Tooltip3
+	runtimeS++
+	if (runtimeS >= 60)
 	{
-	tooltip, , , , 11
-	tooltip, , , , 12
-	tooltip, , , , 14
-	goto RestartMacro
+		runtimeS := 0
+		runtimeM++
 	}
-sleep %ClickScanDelay%
-PixelSearch, , , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x5B4B43, %FishBarColorTolerance%, Fast
-if !ErrorLevel
+	if (runtimeM >= 60)
 	{
-	settimer, ClickShakeFailsafe, off
-	tooltip, , , , 9
-	tooltip, , , , 11
-	tooltip, , , , 12
-	tooltip, , , , 14
-	goto BarMinigame
+		runtimeM := 0
+		runtimeH++
 	}
-else
-	{
-	PixelSearch, ClickX, ClickY, ClickShakeLeft, ClickShakeTop, ClickShakeRight, ClickShakeBottom, 0xFFFFFF, %ClickShakeColorTolerance%, Fast
-	if !ErrorLevel
-		{
 
-		tooltip, Click X: %ClickX%, %TooltipX%, %Tooltip9%, 9
-		tooltip, Click Y: %ClickY%, %TooltipX%, %Tooltip10%, 10
+	Tooltip("Runtime: " . runtimeH . "h " . runtimeM . "m " . runtimeS . "s", TooltipX, Tooltip3)
 
-		if (ClickX != MemoryX and ClickY != MemoryY)
-			{
-			ClickShakeRepeatBypassCounter := 0
-			ClickCount++
-			click, %ClickX%, %ClickY%
-			tooltip, Click Count: %ClickCount%, %TooltipX%, %Tooltip11%, 11
-			MemoryX := ClickX
-			MemoryY := ClickY
-			goto ClickShakeModeRedo
+	if (WinExist("ahk_exe RobloxPlayerBeta.exe") || WinExist("ahk_exe eurotruck2.exe")) {
+		if (!WinActive("ahk_exe RobloxPlayerBeta.exe") || !WinActive("ahk_exe eurotruck2.exe")) {
+				WinActivate()
 			}
+	}
+	else {
+		ExitApp()
+	}
+}
+
+ClickShakeFailsafe()
+{
+	ClickFailsafeCount++
+	Tooltip("Failsafe: " . ClickFailsafeCount . "/" . ShakeFailsafe, TooltipX, Tooltip14)
+	if (ClickFailsafeCount >= ShakeFailsafe)
+	{
+		SetTimer(ClickShakeFailsafe, 0)
+		ForceReset := true
+	}
+}
+
+ClickShakeMode()
+{
+	Tooltip("Current Task: Shaking", TooltipX, Tooltip7)
+	Tooltip("Looking for White pixels", TooltipX, Tooltip8)
+	Tooltip("Click X: None", TooltipX, Tooltip9)
+	Tooltip("Click Y: None", TooltipX, Tooltip10)
+	Tooltip("Click Count: 0", TooltipX, Tooltip11)
+
+	Tooltip("Failsafe: 0/" . ShakeFailsafe, TooltipX, Tooltip14)
+
+	ClickFailsafeCount := 0
+	ClickCount := 0
+	ClickShakeRepeatBypassCounter := 0
+	MemoryX := 0
+	MemoryY := 0
+	ForceReset := false
+
+	SetTimer(ClickShakeFailsafe, 1000)
+
+	while (true)
+	{
+		if (ForceReset)
+		{
+			Tooltip()
+			Tooltip()
+			Tooltip()
+			RestartMacro()
+			return
+		}
+
+		Sleep ClickScanDelay
+
+		if !PixelSearch(&foundX, &foundY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x5B4B43, FishBarColorTolerance)
+		{
+			SetTimer(ClickShakeFailsafe, 0)
+			Tooltip()
+			Tooltip()
+			Tooltip()
+			Tooltip()
+			BarMinigame()
+			return
+		}
 		else
+		{
+			if !PixelSearch(&ClickX, &ClickY, ClickShakeLeft, ClickShakeTop, ClickShakeRight, ClickShakeBottom, 0xFFFFFF, ClickShakeColorTolerance)
 			{
-			ClickShakeRepeatBypassCounter++
-			if (ClickShakeRepeatBypassCounter >= 10)
+				Tooltip("Click X: " . ClickX, TooltipX, Tooltip9)
+				Tooltip("Click Y: " . ClickY, TooltipX, Tooltip10)
+
+				if (ClickX != MemoryX && ClickY != MemoryY)
 				{
-				MemoryX := 0
-				MemoryY := 0
+					ClickShakeRepeatBypassCounter := 0
+					ClickCount++
+					Click ClickX, ClickY
+					Tooltip("Click Count: " . ClickCount, TooltipX, Tooltip11)
+					MemoryX := ClickX
+					MemoryY := ClickY
+					continue
 				}
-			goto ClickShakeModeRedo
+				else
+				{
+					ClickShakeRepeatBypassCounter++
+					if (ClickShakeRepeatBypassCounter >= 10)
+					{
+						MemoryX := 0
+						MemoryY := 0
+					}
+					continue
+				}
+			}
+			else
+			{
+				continue
 			}
 		}
-	else
-		{
-		goto ClickShakeModeRedo
-		}
 	}
+}
 
 ;====================================================================================================;
 
-NavigationShakeFailsafe:
-NavigationFailsafeCount++
-tooltip, Failsafe: %NavigationFailsafeCount%/%ShakeFailsafe%, %TooltipX%, %Tooltip10%, 10
-if (NavigationFailsafeCount >= ShakeFailsafe)
+NavigationShakeFailsafe()
+{
+	NavigationFailsafeCount++
+	Tooltip("Failsafe: " . NavigationFailsafeCount . "/" . ShakeFailsafe, TooltipX, Tooltip10)
+	if (NavigationFailsafeCount >= ShakeFailsafe)
 	{
-	settimer, NavigationShakeFailsafe, off
-	ForceReset := true
+		SetTimer(NavigationShakeFailsafe, 0)
+		ForceReset := true
 	}
-return
+}
 
-NavigationShakeMode:
+NavigationShakeMode()
+{
+	Tooltip("Current Task: Shaking", TooltipX, Tooltip7)
+	Tooltip("Attempt Count: 0", TooltipX, Tooltip8)
+	Tooltip("Failsafe: 0/" . ShakeFailsafe, TooltipX, Tooltip10)
 
-tooltip, Current Task: Shaking, %TooltipX%, %Tooltip7%, 7
-tooltip, Attempt Count: 0, %TooltipX%, %Tooltip8%, 8
+	NavigationFailsafeCount := 0
+	NavigationCounter := 0
+	ForceReset := false
+	SetTimer(NavigationShakeFailsafe, 1000)
+	Send "{" . NavigationKey . "}"
 
-tooltip, Failsafe: 0/%ShakeFailsafe%, %TooltipX%, %Tooltip10%, 10
-
-NavigationFailsafeCount := 0
-NavigationCounter := 0
-ForceReset := false
-settimer, NavigationShakeFailsafe, 1000
-send {%NavigationKey%}
-NavigationShakeModeRedo:
-if (ForceReset == true)
+	while (true)
 	{
-	tooltip, , , , 10
-	NavigationFail := true
-	goto RestartMacro
+		if (ForceReset)
+		{
+			Tooltip()
+			NavigationFail := true
+			RestartMacro()
+			return
+		}
+
+		Sleep NavigationSpamDelay
+
+		if !PixelSearch(&foundX, &foundY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x5B4B43, FishBarColorTolerance)
+		{
+			SetTimer(NavigationShakeFailsafe, 0)
+			BarMinigame()
+			return
+		}
+		else
+		{
+			NavigationCounter++
+			Tooltip("Attempt Count: " . NavigationCounter, TooltipX, Tooltip8)
+			Sleep 1
+			Send "{s}"
+			Sleep 1
+			Send "{enter}"
+			; continue looping
+		}
 	}
-sleep %NavigationSpamDelay%
-PixelSearch, , , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x5B4B43, %FishBarColorTolerance%, Fast
-if !ErrorLevel
-	{
-	settimer, NavigationShakeFailsafe, off
-	goto BarMinigame
-	}
-else
-	{
-	NavigationCounter++
-	tooltip, Attempt Count: %NavigationCounter%, %TooltipX%, %Tooltip8%, 8
-	sleep 1
-	send {s}
-	sleep 1
-	send {enter}
-	goto NavigationShakeModeRedo
-	}
+}
 
 ;=========== BAR ====================================================================================================;
-BarMinigame:
-sleep %BaitDelay%
-if (Sera == true)
+
+BarMinigame()
+{
+	Sleep BaitDelay
+	if (Sera == true)
 	{
-		tooltip, Current Task: Stablizing Seraphic, %TooltipX%, %Tooltip7%, 7
-		tooltip, , , , 8
-		loop, 25
+		Tooltip("Current Task: Stablizing Seraphic", TooltipX, Tooltip7)
+		Tooltip()
+		loop 25
 		{
-			send {lbutton down}
-			sleep 50
-			send {lbutton up}
+			Send "{lbutton down}"
+			Sleep 50
+			Send "{lbutton up}"
 			sleep 30
 		}
-		send {lbutton down}
-		sleep 800
-		send {lbutton up}
+		Send("{lbutton down}")
+		Sleep 800
+		Send("{lbutton up}")
 	}
-; Thanks Lunar ==================
-if Control == 0:
-	Control := 0.001
-WhiteBarSize := Round((A_ScreenWidth / 247.03) * (InStr(Control, "0.") ? (Control * 100) : Control) + (A_ScreenWidth / 8.2759), 0)
-sleep 50
-goto BarMinigameSingle
+	
+	; Thanks Lunar ==================
+	if (Control == 0) {
+		Control := 0.001
+	}
+	global WhiteBarSize
+	WhiteBarSize := Round((A_ScreenWidth / 247.03) * (InStr(Control, "0.") ? (Control * 100) : Control) + (A_ScreenWidth / 8.2759), 0)
+	sleep 50
+	BarMinigameSingle()
+}
 
 
 ;====================================================================================================;
 
-BarMinigameSingle:
-
+BarMinigameSingle()
+{
+	global Action, Direction, DistanceFactor, HalfBarSize, Deadzone, Deadzone2, MaxLeftBar, MaxRightBar, EndMinigame, FishX
+	Action := 0
+	Direction := 0
+	DistanceFactor := 0
+	FishX := 0
 	EndMinigame := false
-	tooltip, Current Task: Playing Bar Minigame, %TooltipX%, %Tooltip7%, 7
-	tooltip, Bar Size: %WhiteBarSize%, %TooltipX%, %Tooltip8%, 8
-	tooltip, Looking for Bar, %TooltipX%, %Tooltip10%, 10
+	Tooltip("Current Task: Playing Bar Minigame", TooltipX, Tooltip7)
+	Tooltip("Bar Size: " . WhiteBarSize, TooltipX, Tooltip8)
+	Tooltip("Looking for Bar", TooltipX, Tooltip10)
 	HalfBarSize := WhiteBarSize/2
 	Deadzone := WhiteBarSize*0.1
 	Deadzone2 := HalfBarSize*0.75
-	
+
 	MaxLeftBar := FishBarLeft+(WhiteBarSize*SideBarRatio)
 	MaxRightBar := FishBarRight-(WhiteBarSize*SideBarRatio)
-	settimer, BarMinigame2, %ScanDelay%
+	SetTimer(BarMinigame2, ScanDelay)
+
+	while (true)
+	{
+		if (EndMinigame)
+		{
+			Sleep RestartDelay
+			RestartMacro()
+			return
+		}
+
+		if (Action == 0)
+		{
+			SideToggle := false
+			Send "{lbutton down}"
+			Sleep 10
+			Send "{lbutton up}"
+			Sleep 10
+		}
+		else if (Action == 1)
+		{
+			SideToggle := false
+			Send "{lbutton up}"
+			if (AnkleBreak == false)
+			{
+				Sleep AnkleBreakDuration
+				AnkleBreakDuration := 0
+			}
+			AdaptiveDuration := 0.5 + 0.5 * (DistanceFactor ** 1.2)
+			if (DistanceFactor < 0.2)
+				AdaptiveDuration := 0.15 + 0.15 * DistanceFactor
+			Duration := Abs(Direction) * StableLeftMultiplier * PixelScaling * AdaptiveDuration
+			Sleep Duration
+			Send "{lbutton down}"
+			CounterStrafe := Duration/StableLeftDivision
+			Sleep CounterStrafe
+			AnkleBreak := true
+			AnkleBreakDuration += (Duration-CounterStrafe)*LeftAnkleBreakMultiplier
+		}
+		else if (Action == 2)
+		{
+			SideToggle := false
+			Send "{lbutton down}"
+			if (AnkleBreak == true)
+			{
+				Sleep AnkleBreakDuration
+				AnkleBreakDuration := 0
+			}
+			AdaptiveDuration := 0.5 + 0.5 * (DistanceFactor ** 1.2)
+			if (DistanceFactor < 0.2)
+				AdaptiveDuration := 0.15 + 0.15 * DistanceFactor
+			Duration := Abs(Direction) * StableRightMultiplier * PixelScaling * AdaptiveDuration
+			Sleep Duration
+			Send "{lbutton up}"
+			CounterStrafe := Duration/StableRightDivision
+			Sleep CounterStrafe
+			AnkleBreak := false
+			AnkleBreakDuration += (Duration-CounterStrafe)*RightAnkleBreakMultiplier
+		}
+		else if (Action == 3)
+		{
+			if (SideToggle == false)
+			{
+				AnkleBreak := "none"
+				AnkleBreakDuration := 0
+				SideToggle := true
+				Send "{lbutton up}"
+				Sleep SideDelay
+			}
+			Sleep ScanDelay
+		}
+		else if (Action == 4)
+		{
+			if (SideToggle == false)
+			{
+				AnkleBreak := "none"
+				AnkleBreakDuration := 0
+				SideToggle := true
+				Send "{lbutton down}"
+				Sleep SideDelay
+			}
+			Sleep ScanDelay
+		}
+		else if (Action == 5)
+		{
+			SideToggle := false
+			Send "{lbutton up}"
+			if (AnkleBreak == false)
+			{
+				Sleep AnkleBreakDuration
+				AnkleBreakDuration := 0
+			}
+			MinDuration := 10
+			if (Control == 0.15 || Control > 0.15)
+				MaxDuration := WhiteBarSize*0.88
+			else if (Control == 0.2 || Control > 0.2)
+				MaxDuration := WhiteBarSize*0.8
+			else if (Control == 0.25 || Control > 0.25)
+				MaxDuration := WhiteBarSize*0.75
+			else
+				MaxDuration := WhiteBarSize + (Abs(Direction) * 0.2)
+			Duration := Max(MinDuration, Min(Abs(Direction) * UnstableLeftMultiplier * PixelScaling, MaxDuration))
+			Sleep Duration
+			Send "{lbutton down}"
+			CounterStrafe := Duration/UnstableLeftDivision
+			Sleep CounterStrafe
+			AnkleBreak := true
+			AnkleBreakDuration += (Duration-CounterStrafe)*LeftAnkleBreakMultiplier
+		}
+		else if (Action == 6)
+		{
+			SideToggle := false
+			Send "{lbutton down}"
+			if (AnkleBreak == true)
+			{
+				Sleep AnkleBreakDuration
+				AnkleBreakDuration := 0
+			}
+			MinDuration := 10
+			if (Control == 0.15 || Control > 0.15)
+				MaxDuration := WhiteBarSize*0.88
+			else if (Control == 0.2 || Control > 0.2)
+				MaxDuration := WhiteBarSize*0.8
+			else if (Control == 0.25 || Control > 0.25)
+				MaxDuration := WhiteBarSize*0.75
+			else
+				MaxDuration := WhiteBarSize + (Abs(Direction) * 0.2)
+			Duration := Max(MinDuration, Min(Abs(Direction) * UnstableRightMultiplier * PixelScaling, MaxDuration))
+			Sleep Duration
+			Send "{lbutton up}"
+			CounterStrafe := Duration/UnstableRightDivision
+			Sleep CounterStrafe
+			AnkleBreak := false
+			AnkleBreakDuration += (Duration-CounterStrafe)*RightAnkleBreakMultiplier
+		}
+		else
+		{
+			Sleep ScanDelay
+		}
+		; loop back
+		continue
+		}
+	}
+
+; BarMinigame2: timer-driven scanning function
+BarMinigame2()
+{
+	global Action, Direction, DistanceFactor, HalfBarSize, Deadzone, Deadzone2, MaxLeftBar, MaxRightBar, FishX
 	
-BarMinigameAction:
-if (EndMinigame == true)
+	; Search for the fish position (assuming fish is represented by a specific color)
+	if !PixelSearch(&FishX, &FishY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x5B4B43, FishBarColorTolerance)
 	{
-		sleep %RestartDelay%
-		goto RestartMacro
+		; If fish not found, default to center
+		FishX := (FishBarLeft + FishBarRight) / 2
 	}
-if (Action == 0)
-	{
-		SideToggle := false
-		send {lbutton down}
-		sleep 10
-		send {lbutton up}
-		sleep 10
-	}
-else if (Action == 1)
-	{
-		SideToggle := false
-		send {lbutton up}
-		if (AnkleBreak == false)
-		{
-			sleep %AnkleBreakDuration%
-			AnkleBreakDuration := 0
-		}
-		AdaptiveDuration := 0.5 + 0.5 * (DistanceFactor ** 1.2)
-		if (DistanceFactor < 0.2)
-			AdaptiveDuration := 0.15 + 0.15 * DistanceFactor
-		Duration := Abs(Direction) * StableLeftMultiplier * PixelScaling * AdaptiveDuration
-		sleep %Duration%
-		send {lbutton down}
-		CounterStrafe := Duration/StableLeftDivision
-		sleep %CounterStrafe%
-		AnkleBreak := true
-		AnkleBreakDuration := AnkleBreakDuration+(Duration-CounterStrafe)*LeftAnkleBreakMultiplier
-	}
-else if (Action == 2)
-	{
-		SideToggle := false
-		send {lbutton down}
-		if (AnkleBreak == true)
-		{
-			sleep %AnkleBreakDuration%
-			AnkleBreakDuration := 0
-		}
-		AdaptiveDuration := 0.5 + 0.5 * (DistanceFactor ** 1.2)
-		if (DistanceFactor < 0.2)
-			AdaptiveDuration := 0.15 + 0.15 * DistanceFactor
-		Duration := Abs(Direction) * StableRightMultiplier * PixelScaling * AdaptiveDuration
-		sleep %Duration%
-		send {lbutton up}
-		CounterStrafe := Duration/StableRightDivision
-		sleep %CounterStrafe%
-		AnkleBreak := false
-		AnkleBreakDuration := AnkleBreakDuration+(Duration-CounterStrafe)*RightAnkleBreakMultiplier
-	}
-else if (Action == 3)
-	{
-		if (SideToggle == false)
-		{
-			AnkleBreak := none
-			AnkleBreakDuration := 0
-			SideToggle := true
-			send {lbutton up}
-			sleep %SideDelay%
-		}
-		sleep %ScanDelay%
-	}
-else if (Action == 4)
-	{
-		if (SideToggle == false)
-		{
-			AnkleBreak := none
-			AnkleBreakDuration := 0
-			SideToggle := true
-			send {lbutton down}
-			sleep %SideDelay%
-		}
-		sleep %ScanDelay%
-	}
-else if (Action == 5)
-	{
-		SideToggle := false
-		send {lbutton up}
-		if (AnkleBreak == false)
-		{
-			sleep %AnkleBreakDuration%
-			AnkleBreakDuration := 0
-		}
-		MinDuration := 10
-		if (Control == 0.15 or Control > 0.15){
-			MaxDuration := WhiteBarSize*0.88
-		}else if(Control == 0.2 or Control > 0.2){
-			MaxDuration := WhiteBarSize*0.8
-		}else if(Control == 0.25 or Control > 0.25){
-			MaxDuration := WhiteBarSize*0.75
-		}else{
-			MaxDuration := WhiteBarSize + (Abs(Direction) * 0.2)
-		}
-		Duration := Max(MinDuration, Min(Abs(Direction) * UnstableLeftMultiplier * PixelScaling, MaxDuration))
-		sleep %Duration%
-		send {lbutton down}
-		CounterStrafe := Duration/UnstableLeftDivision
-		sleep %CounterStrafe%
-		AnkleBreak := true
-		AnkleBreakDuration := AnkleBreakDuration+(Duration-CounterStrafe)*LeftAnkleBreakMultiplier
-	}
-else if (Action == 6)
-	{
-		SideToggle := false
-		send {lbutton down}
-		if (AnkleBreak == true)
-		{
-			sleep %AnkleBreakDuration%
-			AnkleBreakDuration := 0
-		}
-		MinDuration := 10
-		if (Control == 0.15 or Control > 0.15){
-			MaxDuration := WhiteBarSize*0.88
-		}else if(Control == 0.2 or Control > 0.2){
-			MaxDuration := WhiteBarSize*0.8
-		}else if(Control == 0.25 or Control > 0.25){
-			MaxDuration := WhiteBarSize*0.75
-		}else{
-			MaxDuration := WhiteBarSize + (Abs(Direction) * 0.2)
-		}	
-		Duration := Max(MinDuration, Min(Abs(Direction) * UnstableRightMultiplier * PixelScaling, MaxDuration))
-		sleep %Duration%
-		send {lbutton up}
-		CounterStrafe := Duration/UnstableRightDivision
-		sleep %CounterStrafe%
-		AnkleBreak := false
-		AnkleBreakDuration := AnkleBreakDuration+(Duration-CounterStrafe)*RightAnkleBreakMultiplier
-	}
-else
-	{
-		sleep %ScanDelay%
-	}
-goto BarMinigameAction
-
-
-
-BarMinigame2:
-sleep 1
-PixelSearch, FishX, , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x5B4B43, %FishBarColorTolerance%, Fast
-if !ErrorLevel
-	{
-	tooltip, +, %FishX%, %FishBarTooltipHeight%, 20
+	
+	Tooltip("+", FishX, FishBarTooltipHeight)
 	if (FishX < MaxLeftBar)
-		{
-			Action := 3
-			tooltip, |, %MaxLeftBar%, %FishBarTooltipHeight%, 19
-			tooltip, Direction: Max Left, %TooltipX%, %Tooltip10%, 10
-			PixelSearch, ArrowX, , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x878584, %ArrowColorTolerance%, Fast
-				if !ErrorLevel
-				{	
-					tooltip, <-, %ArrowX%, %FishBarTooltipHeight%, 18
-					if (MaxLeftBar < ArrowX)
-					{	
-						SideToggle := false
-					}
-				}
-			return
-		}
-	else if (FishX > MaxRightBar)
-		{
-			Action := 4
-			tooltip, |, %MaxRightBar%, %FishBarTooltipHeight%, 19
-			tooltip, Direction: Max Right, %TooltipX%, %Tooltip10%, 10
-			PixelSearch, ArrowX, , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x878584, %ArrowColorTolerance%, Fast
-				if !ErrorLevel
-				{	
-					tooltip, ->, %ArrowX%, %FishBarTooltipHeight%, 18
-					if (MaxRightBar > ArrowX)
-					{	
-						SideToggle := false
-					}
-				}
-			return
-		}
-	PixelSearch, BarX, , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0xFFFFFF, %WhiteBarColorTolerance%, Fast
-	if !ErrorLevel
-		{
-			tooltip, , , , 18
-			BarX := BarX + HalfBarSize
-			Direction := BarX - FishX
-			DistanceFactor := Abs(Direction) / HalfBarSize
-
-			Ratio2 := Deadzone2/WhiteBarSize
-			if (Direction > Deadzone && Direction < Deadzone2)
-			{
-				Action := 1
-				tooltip, Tracking direction: <, %TooltipX%, %Tooltip10%, 10
-				tooltip, <, %BarX%, %FishBarTooltipHeight%, 19
-			}
-			else if (Direction < -Deadzone && Direction > -Deadzone2)
-			{
-				Action := 2
-				tooltip, Tracking direction: >, %TooltipX%, %Tooltip10%, 10
-				tooltip, >, %BarX%, %FishBarTooltipHeight%, 19
-			}
-			else if (Direction > Deadzone2)
-			{
-				Action := 5
-				tooltip, Tracking direction: <<<, %TooltipX%, %Tooltip10%, 10
-				tooltip, <, %BarX%, %FishBarTooltipHeight%, 19
-			}
-			else if (Direction < -Deadzone2)
-			{
-				Action := 6
-				tooltip, Tracking direction: >>>, %TooltipX%, %Tooltip10%, 10
-				tooltip, >, %BarX%, %FishBarTooltipHeight%, 19
-			}
-			else
-			{
-				Action := 0
-				tooltip, Stabilizing, %TooltipX%, %Tooltip10%, 10
-				tooltip, ., %BarX%, %FishBarTooltipHeight%, 19
-			}
-		}
-	else
-		{
-			Direction := HalfBarSize
-			PixelSearch, ArrowX, , FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x878584, %ArrowColorTolerance%, Fast
-			ArrowX := ArrowX-FishX
-			if (ArrowX > 0)
-			{	
-				Action := 5
-				BarX := FishX+HalfBarSize
-				tooltip, Tracking direction: <<<, %TooltipX%, %Tooltip10%, 10
-				tooltip, <, %BarX%, %FishBarTooltipHeight%, 19
-			}
-			else
-			{	
-				Action := 6
-				BarX := FishX-HalfBarSize
-				tooltip, Tracking direction: >>>, %TooltipX%, %Tooltip10%, 10
-				tooltip, >, %BarX%, %FishBarTooltipHeight%, 19
-			}
-		}
-	}
-else
 	{
-		tooltip, , , , 10
-		tooltip, , , , 11
-		tooltip, , , , 12
-		tooltip, , , , 13
-		tooltip, , , , 14
-		tooltip, , , , 15
-		tooltip, , , , 17
-		tooltip, , , , 18
-		tooltip, , , , 19
-		tooltip, , , , 20
-		EndMinigame := true
-		settimer, BarMinigame2, Off
+		Action := 3
+		Tooltip("|", MaxLeftBar, FishBarTooltipHeight)
+		Tooltip("Direction: Max Left", TooltipX, Tooltip10)
+		if !PixelSearch(&ArrowX, &ArrowY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x878584, ArrowColorTolerance)
+		{
+			Tooltip("<-", ArrowX, FishBarTooltipHeight)
+			if (MaxLeftBar < ArrowX)
+				SideToggle := false
+		}
+		return
 	}
+	else if (FishX > MaxRightBar)
+	{
+		Action := 4
+		Tooltip("|", MaxRightBar, FishBarTooltipHeight)
+		Tooltip("Direction: Max Right", TooltipX, Tooltip10)
+		if !PixelSearch(&ArrowX, &ArrowY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x878584, ArrowColorTolerance)
+		{
+			Tooltip("->", ArrowX, FishBarTooltipHeight)
+			if (MaxRightBar > ArrowX)
+				SideToggle := false
+		}
+		return
+	}
+
+	if !PixelSearch(&BarX, &BarY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0xFFFFFF, WhiteBarColorTolerance)
+	{
+		Tooltip()
+		BarX := BarX + HalfBarSize
+		Direction := BarX - FishX
+		DistanceFactor := Abs(Direction) / HalfBarSize
+
+		Ratio2 := Deadzone2/WhiteBarSize
+		if (Direction > Deadzone && Direction < Deadzone2)
+		{
+			Action := 1
+			Tooltip("Tracking direction: <", TooltipX, Tooltip10)
+			Tooltip("<", BarX, FishBarTooltipHeight)
+		}
+		else if (Direction < -Deadzone && Direction > -Deadzone2)
+		{
+			Action := 2
+			Tooltip("Tracking direction: >", TooltipX, Tooltip10)
+			Tooltip(">", BarX, FishBarTooltipHeight)
+		}
+		else if (Direction > Deadzone2)
+		{
+			Action := 5
+			Tooltip("Tracking direction: <<<", TooltipX, Tooltip10)
+			Tooltip("<", BarX, FishBarTooltipHeight)
+		}
+		else if (Direction < -Deadzone2)
+		{
+			Action := 6
+			Tooltip("Tracking direction: >>>", TooltipX, Tooltip10)
+			Tooltip(">", BarX, FishBarTooltipHeight)
+		}
+		else
+		{
+			Action := 0
+			Tooltip("Stabilizing", TooltipX, Tooltip10)
+			Tooltip(".", BarX, FishBarTooltipHeight)
+		}
+	}
+	else
+	{
+		Direction := HalfBarSize
+		if !PixelSearch(&ArrowX, &ArrowY, FishBarLeft, FishBarTop, FishBarRight, FishBarBottom, 0x878584, ArrowColorTolerance)
+			ArrowX := ArrowX - FishX
+		if (ArrowX > 0)
+		{
+			Action := 5
+			BarX := FishX+HalfBarSize
+			Tooltip("Tracking direction: <<<", TooltipX, Tooltip10)
+			Tooltip("<", BarX, FishBarTooltipHeight)
+		}
+		else
+		{
+			Action := 6
+			BarX := FishX-HalfBarSize
+			Tooltip("Tracking direction: >>>", TooltipX, Tooltip10)
+			Tooltip(">", BarX, FishBarTooltipHeight)
+		}
+	}
+
+	Tooltip()
+	EndMinigame := true
+	SetTimer(BarMinigame2, 0)
+}
+
+RestartMacro()
+{
+	global EndMinigame
+	sleep 100
+	if (AutoBlurCamera == true)
+	{
+		if (EndMinigame == true or NavigationFail == true)
+		{
+			Send(Chr(96))
+		}
+	}
+	Tooltip()
+
+	Tooltip("Current Task: AutoEnableCameraMode", TooltipX, Tooltip7)
+	Tooltip("Right Count: 0/10", TooltipX, Tooltip9)
+	rightcounter := 0
+	if (AutoEnableCameraMode == true)
+	{
+		if !PixelSearch(&foundX, &foundY, CameraCheckLeft, CameraCheckTop, CameraCheckRight, CameraCheckBottom, 0xFFFFFF, 0)
+		{
+			sleep 50
+			if (NavigationFail == true)
+			{
+				Sleep 50
+				Send "{" . NavigationKey . "}"
+				Sleep 50
+				Send "{2}"
+				Sleep 50
+				NavigationFail := false
+			}
+			Sleep 50
+			Send "{2}"
+			Tooltip("Action: Presss 2", TooltipX, Tooltip8)
+			Sleep 50
+			Send "{1}"
+			Tooltip("Action: Press 1", TooltipX, Tooltip8)
+			Sleep 50
+			Send "{" . NavigationKey . "}"
+			Tooltip("Action: Press " . NavigationKey, TooltipX, Tooltip8)
+			Sleep 50
+			loopCount := 10
+			while (loopCount > 0)
+			{
+				rightcounter++
+				Tooltip("Right Count: " . rightcounter . "/10", TooltipX, Tooltip9)
+				Send "{right}"
+				Tooltip("Action: Press Right", TooltipX, Tooltip8)
+				Sleep 150
+				loopCount--
+			}
+			Send "{enter}"
+			Tooltip("Action: Press Enter", TooltipX, Tooltip8)
+			Sleep 50
+		}
+	}
+
+	Tooltip()
+	Tooltip("Current Task: AutoLookDownCamera", TooltipX, Tooltip7)
+	if (AutoLookDownCamera)
+	{
+		Send "{rbutton up}"
+		Sleep 50
+		MouseMove(LookDownX, LookDownY)
+		Tooltip("Action: Position Mouse", TooltipX, Tooltip8)
+		Sleep 50
+		Send "{rbutton down}"
+		Tooltip("Action: Hold Right Click", TooltipX, Tooltip8)
+		Sleep 50
+		DllCall("mouse_event", "UInt", 0x01, "UInt", 0, "UInt", 10000)
+		Tooltip("Action: Move Mouse Down", TooltipX, Tooltip8)
+		Sleep 50
+		Send "{rbutton up}"
+		Tooltip("Action: Release Right Click", TooltipX, Tooltip8)
+		Sleep 50
+		MouseMove(LookDownX, LookDownY)
+		Tooltip("Action: Position Mouse", TooltipX, Tooltip8)
+		Sleep 50
+	}
+
+	Tooltip("Current Task: AutoBlurCamera", TooltipX, Tooltip7)
+	if (AutoBlurCamera)
+	{
+		Sleep 50
+		Send(Chr(96))
+		Tooltip("Action: Press " . Chr(96), TooltipX, Tooltip8)
+		Sleep 50
+	}
+
+	Tooltip("Current Task: Casting Rod", TooltipX, Tooltip7)
+	Send "{lbutton down}"
+	Tooltip("Action: Casting For " . HoldRodCastDuration . "ms", TooltipX, Tooltip8)
+	Sleep HoldRodCastDuration
+	Send "{lbutton up}"
+	Tooltip("Action: Waiting For Bobber (" . WaitForBobberDelay . "ms)", TooltipX, Tooltip8)
+	Sleep WaitForBobberDelay
+
+	if (ShakeMode == "Click")
+		ClickShakeMode()
+	else if (ShakeMode == "Navigation")
+		NavigationShakeMode()
+}
