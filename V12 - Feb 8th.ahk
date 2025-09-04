@@ -13,6 +13,9 @@ runtimeM := 0
 runtimeH := 0
 f10counter := 0
 
+; Macro start flag
+IsStarted := false
+
 ; Config search variables
 masterCfgList := []
 
@@ -32,12 +35,13 @@ IniWriteVar(file, section, key, value) {
 #Requires AutoHotkey v2
 
 ; If a saved theme exists in default.ini, load it so controls are created with correct colors
-startDarkMode := IniReadVar(A_ScriptDir "\\default.ini", "General", "DarkMode", "")
-if (startDarkMode != "")
-	DarkMode := startDarkMode
+startDarkMode := IniReadVar(A_ScriptDir "\\Configs\\default.ini", "General", "DarkMode", "")
+DarkMode := 0
+if (startDarkMode == "1")
+	DarkMode := 1
 
 ; Create GUI (AHK v2 style)
-MainGui := Gui("+Resize +MinSize", "Fisch Macro " . AppVersion)
+MainGui := Gui("+Resize +MinSize +AlwaysOnTop", "Fisch Macro " . AppVersion)
 MainGui.MarginX := 12
 MainGui.MarginY := 12
 
@@ -55,6 +59,11 @@ if (DarkMode) {
 MainGui.Font := "s10 c" FontColor " Segoe UI"
 
 Tab := MainGui.Add("Tab", "x10 y15 w780 h500", ["General Settings", "Shake Settings", "Minigame Settings"])
+
+if (DarkMode)
+    Tab.BackColor := "0x1E1E1E"
+else
+    Tab.BackColor := "0xF5F5F5"
 
 ; General Settings Tab
 Tab.UseTab("General Settings")
@@ -183,85 +192,109 @@ Tab.UseTab()
 ; Buttons row
 BtnSave := MainGui.Add("Button", "x200 y460 w80 h30", "Save settings")
 BtnSave.OnEvent("Click", (*) => SaveSettings())
-BtnLoad := MainGui.Add("Button", "x300 y460 w80 h30", "Load settings")
-BtnLoad.OnEvent("Click", (*) => LoadSettings())
+BtnClear := MainGui.Add("Button", "x300 y460 w80 h30", "Clear settings")
+BtnClear.OnEvent("Click", (*) => ClearSettings())
 BtnExit := MainGui.Add("Button", "x400 y460 w80 h30", "Exit")
 BtnExit.OnEvent("Click", (*) => ExitScript())
 BtnLaunch := MainGui.Add("Button", "x500 y460 w80 h30", "Start Macro")
 BtnLaunch.OnEvent("Click", (*) => Launch())
 BtnToggleDark := MainGui.Add("Button", "x600 y460 w80 h30 vDarkModeBtn", "Dark Mode")
 BtnToggleDark.OnEvent("Click", (*) => ToggleDarkMode())
-MainGui.Add("Text", "x30 y440", "Configs list")
-CfgSearch := MainGui.Add("Edit", "x30 y460 w75 vCfgSearch", "")
-CfgSearch.OnEvent("Change", (*) => FilterConfigs())
-DropItem := MainGui.Add("DropDownList", "x110 y460 w75 vDropItem")
+if (DarkMode)
+    BtnToggleDark.Text := "Dark Mode"
+else
+    BtnToggleDark.Text := "Light Mode"
+MainGui.Add("Text", "x30 y440", "Config:")
+DropItem := MainGui.Add("DropDownList", "x30 y460 w80 h30 vDropItem")
 DropItem.OnEvent("Change", SelectItem)
 
-MainGui.Show()
-MainGui.OnEvent("Close", (*) => ExitScript())
-MainGui.AlwaysOnTop := true
+SetEditFonts()  ; Apply theme colors to all controls
 
-; Update Dark Mode button label to reflect current state (show action)
-if (DarkMode)
-	BtnToggleDark.Text := "Light Mode"
-else
-	BtnToggleDark.Text := "Dark Mode"
+MainGui.Show("x100 y100")
+MainGui.OnEvent("Close", (*) => ExitScript())
 
 ; Ensure edit/dropdown text remains black for readability
 SetEditFonts()
 
-
-; (Dark mode button already updated via object .Value above)
-
-; Build a list of config names from the `Configs` folder and set the dropdown
+; Build master list of config names from Configs/ and root; keep "default" separate
 masterCfgList := []
-seen := {}
-Loop Files, A_ScriptDir "\Configs\*.ini" {
+tmpList := []
+
+; Collect from Configs folder first
+Loop Files, A_ScriptDir "\\Configs\\*.ini" {
 	fileName := RegExReplace(A_LoopFileName, "\.ini$")
 	if (fileName == "" || fileName == ".")
 		continue
-	if (seen.HasProp(fileName))
-		continue
-	seen.%fileName% := true
-	masterCfgList.Push(fileName)
+	tmpList.Push(fileName)
 }
 
-; Build master list from root folder as well
-Loop Files, A_ScriptDir "\*.ini" {
+; Collect from root folder as well
+Loop Files, A_ScriptDir "\\*.ini" {
 	fileName := RegExReplace(A_LoopFileName, "\.ini$")
-	if (fileName == "" || fileName == "." || fileName == "default")
+	if (fileName == "" || fileName == ".")
 		continue
-	if (seen.HasProp(fileName))
-		continue
-	seen.%fileName% := true
-	masterCfgList.Push(fileName)
+	tmpList.Push(fileName)
 }
 
-FilterConfigs()
+; Deduplicate while preserving order and skip the default entry here (we add default manually in dropdown)
+seen := {}
+for index, name in tmpList {
+	if (name = "default")
+		continue
+	if (seen.HasProp(name))
+		continue
+	seen.%name% := true
+	masterCfgList.Push(name)
+}
 
 ; End of auto-execute portion - functions start after this Return
 
-; Hotkeys with runtime WinActive checks (AHK v2-friendly)
+; Now that masterCfgList is built, populate dropdown and load default
+FilterConfigs()
+try DropItem.Choose(1)  ; choose first item (default)
+catch
+	; ignore if dropdown isn't ready
+SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
+if FileExist(SettingsFileName)
+	LoadSettings()
+
+
+; Hotkeys - work only when Roblox is active and macro is started
+#HotIf WinActive("ahk_exe RobloxPlayerBeta.exe") || WinActive("ahk_exe eurotruck2.exe")
+
 o::
 {
-	if WinActive("ahk_class AutoHotkeyGUI")
+	global IsStarted
+	if !IsStarted
 		return
 	Reload()
 }
 
 m::
 {
-	if WinActive("ahk_class AutoHotkeyGUI")
+	global IsStarted
+	if !IsStarted
 		return
 	ExitApp()
 }
 
 p::
 {
-	if WinActive("ahk_class AutoHotkeyGUI")
+	global IsStarted
+	if !IsStarted
 		return
 	StartCalculation()
 }
+
+q::
+{
+	global IsStarted
+	if !IsStarted
+		return
+	Pause
+}
+
+#HotIf
     
 
 ; Restore previously selected config if it exists
@@ -295,13 +328,13 @@ SelectItem(ctrl, eventInfo)
 	selected := ctrl.Value
 	if (selected = "(no configs)" || selected = "(no matches)")
 		return
-	if (selected = "") {
-		SettingsFileName := A_ScriptDir "\\default.ini"
+	if (selected = "default") {
+		SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
 	} else {
-	SettingsFileName := A_ScriptDir '\\Configs\\' selected '.ini'
-	; If not found in Configs folder, try root folder
-	if !FileExist(SettingsFileName)
-		SettingsFileName := A_ScriptDir '\\' selected '.ini'
+		SettingsFileName := A_ScriptDir '\\Configs\\' selected '.ini'
+		; If not found in Configs folder, try root folder
+		if !FileExist(SettingsFileName)
+			SettingsFileName := A_ScriptDir '\\' selected '.ini'
 	}
 	if !FileExist(SettingsFileName)
 		return
@@ -311,26 +344,14 @@ SelectItem(ctrl, eventInfo)
 
 FilterConfigs()
 {
-	global CfgSearch, DropItem, masterCfgList
-	search := CfgSearch.Value
-	searchLower := StrLower(search)
-	filteredList := []
-	
-	for index, name in masterCfgList {
-		nameLower := StrLower(name)
-		if (searchLower = "" || InStr(nameLower, searchLower)) {
-			filteredList.Push(name)
-		}
-	}
+	global DropItem, masterCfgList
 	
 	DropItem.Delete()
-	if (filteredList.Length = 0) {
-		DropItem.Add(["(no matches)"])
-	} else {
-		DropItem.Add(filteredList)
-		; Focus the dropdown and open it if there are matches
-		SetTimer(() => OpenCfgDropdown(), -80)
+	local configList := ["default"]
+	for name in masterCfgList {
+		configList.Push(name)
 	}
+	DropItem.Add(configList)
 }
 
 OpenCfgDropdown()
@@ -457,11 +478,7 @@ CheckHelpHover() {
 ; Save settings
 SaveSettings() {
 	; read values from control objects and write to INI
-	sel := DropItem.Value
-	if (sel = "")
-		SettingsFileName := A_ScriptDir "\\default.ini"
-	else
-	SettingsFileName := A_ScriptDir '\\Configs\\' sel '.ini'
+	SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
 
 	FileAppend("", SettingsFileName) ; ensure file exists
 
@@ -509,11 +526,6 @@ SaveSettings() {
 	IniWriteVar(SettingsFileName, "Minigame", "RightAnkleBreakMultiplier", RightAnkleBreakMultiplier.Value)
 	IniWriteVar(SettingsFileName, "Minigame", "LeftAnkleBreakMultiplier", LeftAnkleBreakMultiplier.Value)
 
-	if (sel != "")
-		IniWriteVar(A_ScriptDir "\\default.ini", "General", "CurrentConfig", sel)
-	else
-		IniWriteVar(A_ScriptDir "\\default.ini", "General", "CurrentConfig", "default")
-
 	; briefly toggle AlwaysOnTop to refresh if needed
 	MainGui.AlwaysOnTop := false
 	MainGui.AlwaysOnTop := true
@@ -525,8 +537,8 @@ ToggleDarkMode() {
 	DarkMode := !DarkMode
 	if (SettingsFileName != "")
 		IniWriteVar(SettingsFileName, "General", "DarkMode", DarkMode)
-	IniWriteVar(A_ScriptDir "\\default.ini", "General", "DarkMode", DarkMode)
-	ApplyTheme()
+	IniWriteVar(A_ScriptDir "\\Configs\\default.ini", "General", "DarkMode", DarkMode)
+	Reload()  ; Reload the script to apply the new theme
 }
 
 ; Apply theme based on DarkMode
@@ -535,13 +547,16 @@ ApplyTheme() {
 	if (DarkMode) {
 		MainGui.Color := "0x1E1E1E"
 		FontColor := "FFFFFF"
-		BtnToggleDark.Text := "Light Mode"
+		BtnToggleDark.Text := "Dark Mode"
+		Tab.BackColor := "0x1E1E1E"  ; Match the main GUI color for tab backgrounds
 	} else {
 		MainGui.Color := "0xF5F5F5"
 		FontColor := "000000"
-		BtnToggleDark.Text := "Dark Mode"
+		BtnToggleDark.Text := "Light Mode"
+		Tab.BackColor := "0xF5F5F5"  ; Match the main GUI color for tab backgrounds
 	}
 	SetEditFonts()
+	DllCall("RedrawWindow", "Ptr", MainGui.Hwnd, "Ptr", 0, "Ptr", 0, "UInt", 0x1)  ; Force a visual refresh of the GUI after theme changes
 }
 
 SetEditFonts() {
@@ -550,38 +565,122 @@ SetEditFonts() {
 	global WhiteBarColorTolerance, ArrowColorTolerance, ScanDelay, SideBarRatio, SideDelay
 	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
 	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
-	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier, DropItem, ShakeMode, FontColor, CfgSearch
+	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier, DropItem, ShakeMode, FontColor, DarkMode
 	; Use appropriate text color based on theme - black text for edit controls for visibility
 	local fontSpec := "s10 c000000 Segoe UI"
+	local bgColor := DarkMode ? 0x1E1E1E : 0xF5F5F5
 	RestartDelay.Font := fontSpec
+	RestartDelay.BackColor := bgColor
 	HoldRodCastDuration.Font := fontSpec
+	HoldRodCastDuration.BackColor := bgColor
 	WaitForBobberDelay.Font := fontSpec
+	WaitForBobberDelay.BackColor := bgColor
 	BaitDelay.Font := fontSpec
+	BaitDelay.BackColor := bgColor
 	NavigationKey.Font := fontSpec
+	NavigationKey.BackColor := bgColor
 	ShakeFailsafe.Font := fontSpec
+	ShakeFailsafe.BackColor := bgColor
 	ClickShakeColorTolerance.Font := fontSpec
+	ClickShakeColorTolerance.BackColor := bgColor
 	ClickScanDelay.Font := fontSpec
+	ClickScanDelay.BackColor := bgColor
 	NavigationSpamDelay.Font := fontSpec
+	NavigationSpamDelay.BackColor := bgColor
 	Control.Font := fontSpec
+	Control.BackColor := bgColor
 	FishBarColorTolerance.Font := fontSpec
+	FishBarColorTolerance.BackColor := bgColor
 	WhiteBarColorTolerance.Font := fontSpec
+	WhiteBarColorTolerance.BackColor := bgColor
 	ArrowColorTolerance.Font := fontSpec
+	ArrowColorTolerance.BackColor := bgColor
 	ScanDelay.Font := fontSpec
+	ScanDelay.BackColor := bgColor
 	SideBarRatio.Font := fontSpec
+	SideBarRatio.BackColor := bgColor
 	SideDelay.Font := fontSpec
+	SideDelay.BackColor := bgColor
 	StableRightMultiplier.Font := fontSpec
+	StableRightMultiplier.BackColor := bgColor
 	StableRightDivision.Font := fontSpec
+	StableRightDivision.BackColor := bgColor
 	StableLeftMultiplier.Font := fontSpec
+	StableLeftMultiplier.BackColor := bgColor
 	StableLeftDivision.Font := fontSpec
+	StableLeftDivision.BackColor := bgColor
 	UnstableRightMultiplier.Font := fontSpec
+	UnstableRightMultiplier.BackColor := bgColor
 	UnstableRightDivision.Font := fontSpec
+	UnstableRightDivision.BackColor := bgColor
 	UnstableLeftMultiplier.Font := fontSpec
+	UnstableLeftMultiplier.BackColor := bgColor
 	UnstableLeftDivision.Font := fontSpec
+	UnstableLeftDivision.BackColor := bgColor
 	RightAnkleBreakMultiplier.Font := fontSpec
+	RightAnkleBreakMultiplier.BackColor := bgColor
 	LeftAnkleBreakMultiplier.Font := fontSpec
+	LeftAnkleBreakMultiplier.BackColor := bgColor
 	DropItem.Font := fontSpec
+	DropItem.BackColor := bgColor
 	ShakeMode.Font := fontSpec
-	CfgSearch.Font := fontSpec
+	ShakeMode.BackColor := bgColor
+}
+
+; Clear settings to defaults
+ClearSettings() {
+	global AutoLowerGraphics, AutoZoomInCamera, AutoEnableCameraMode, AutoLookDownCamera, AutoBlurCamera
+	global RestartDelay, HoldRodCastDuration, WaitForBobberDelay, BaitDelay, Sera, NavigationKey, ShakeMode, ShakeFailsafe
+	global ClickShakeColorTolerance, ClickScanDelay, NavigationSpamDelay, Control, FishBarColorTolerance
+	global WhiteBarColorTolerance, ArrowColorTolerance, ScanDelay, SideBarRatio, SideDelay
+	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
+	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
+	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier, DropItem
+	
+	; Reset all controls to default values
+	AutoLowerGraphics.Value := 0
+	AutoZoomInCamera.Value := 0
+	AutoEnableCameraMode.Value := 0
+	AutoLookDownCamera.Value := 0
+	AutoBlurCamera.Value := 0
+	
+	RestartDelay.Value := "1500"
+	HoldRodCastDuration.Value := "600"
+	WaitForBobberDelay.Value := "1000"
+	BaitDelay.Value := "300"
+	Sera.Value := 0
+	
+	NavigationKey.Value := ""
+	ShakeMode.Value := 1
+	ShakeFailsafe.Value := 0
+	
+	ClickShakeColorTolerance.Value := ""
+	ClickScanDelay.Value := ""
+	NavigationSpamDelay.Value := ""
+	
+	Control.Value := ""
+	FishBarColorTolerance.Value := ""
+	WhiteBarColorTolerance.Value := ""
+	ArrowColorTolerance.Value := ""
+	
+	ScanDelay.Value := ""
+	SideBarRatio.Value := ""
+	SideDelay.Value := ""
+	
+	StableRightMultiplier.Value := ""
+	StableRightDivision.Value := ""
+	StableLeftMultiplier.Value := ""
+	StableLeftDivision.Value := ""
+	
+	UnstableRightMultiplier.Value := ""
+	UnstableRightDivision.Value := ""
+	UnstableLeftMultiplier.Value := ""
+	UnstableLeftDivision.Value := ""
+	
+	RightAnkleBreakMultiplier.Value := ""
+	LeftAnkleBreakMultiplier.Value := ""
+	
+	DropItem.Value := ""
 }
 
 ; Load settings
@@ -690,13 +789,15 @@ LoadSettings() {
 		RightAnkleBreakMultiplier.Value := lRightAnkleBreakMultiplier
 		LeftAnkleBreakMultiplier.Value := lLeftAnkleBreakMultiplier
 
-		; read theme and apply if present (apply dynamically instead of reloading GUI)
+		; read theme and apply if present (reload to apply new theme)
 		lDarkMode := IniReadVar(SettingsFileName, "General", "DarkMode", "")
-		if (lDarkMode != "") {
-			prevDark := DarkMode
-			DarkMode := lDarkMode
-			IniWriteVar(A_ScriptDir "\\default.ini", "General", "DarkMode", DarkMode)
-			ApplyTheme()
+		newDarkMode := 0
+		if (lDarkMode == "1")
+			newDarkMode := 1
+		if (newDarkMode != DarkMode) {
+			DarkMode := newDarkMode
+			IniWriteVar(A_ScriptDir "\\Configs\\default.ini", "General", "DarkMode", DarkMode)
+			Reload()  ; Reload the script to apply the new theme
 		}
 
 	MainGui.Font := "s10 c" FontColor " Segoe UI"
@@ -711,6 +812,8 @@ ExitScript() {
 }
 
 Launch() {
+	global IsStarted
+	IsStarted := true
 	MainGui.AlwaysOnTop := false
 	MainGui.Hide()
 	lAutoLowerGraphics := IniReadVar(SettingsFileName, "General", "AutoLowerGraphics", "")
@@ -763,7 +866,8 @@ Launch() {
 		ExitApp()
 	}
 	
-	WinActivate("Roblox")
+	if WinExist("Roblox")
+		WinActivate("Roblox")
 	if WinActive("ahk_exe RobloxPlayerBeta.exe") || WinActive("ahk_exe eurotruck2.exe")
 	{
 		; Resize Roblox to standard 1920x1080 resolution for proper macro functionality
@@ -773,7 +877,8 @@ Launch() {
 	}
 	else
 	{
-		; Silent exit if required app not active
+		; Show message if Roblox not found
+		MsgBox("Roblox is not running. Please start Roblox first.", "Error", "Icon!")
 		ExitApp()
 	}
 	
