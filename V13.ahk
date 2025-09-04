@@ -1,4 +1,6 @@
 ﻿#SingleInstance Force
+#Warn All, OutputDebug
+
 SetTitleMatchMode 2
 
 ; Application/version label (change this string to update the GUI title)
@@ -6,6 +8,23 @@ AppVersion := "V13 Remasterd by SeneX"
 
 ; Theme state
 DarkMode := 0
+
+; Central script/config paths
+ScriptDir := A_ScriptDir
+ConfigDir := ScriptDir "\\Configs"
+if !FileExist(ConfigDir)
+	DirCreate(ConfigDir)
+
+; If not running elevated, relaunch the script as administrator and exit this instance.
+if (!A_IsAdmin) {
+	try {
+		; Use ShellExecuteW with the "runas" verb to trigger UAC and run the current AHK executable with this script as argument.
+		DllCall("Shell32\ShellExecuteW", "ptr", 0, "wstr", "runas", "wstr", A_AhkPath, "wstr", A_ScriptFullPath, "wstr", A_ScriptDir, "int", 1)
+	} catch {
+		MsgBox("Error: Unable to relaunch script as administrator. Please run the script as admin manually.", "Error", "Icon!")
+	}
+	ExitApp()
+}
 
 ; Runtime tracking variables
 runtimeS := 0
@@ -59,10 +78,11 @@ IniWriteVar(file, section, key, value) {
 #Requires AutoHotkey v2
 
 ; If a saved theme exists in default.ini, load it so controls are created with correct colors
-startDarkMode := IniReadVar(A_ScriptDir "\\Configs\\default.ini", "General", "DarkMode", "")
-DarkMode := 0
-if (startDarkMode == "1")
+startDarkMode := IniReadVar(ConfigDir "\\default.ini", "General", "DarkMode", "0")
+if (startDarkMode = "1" || startDarkMode = 1)
 	DarkMode := 1
+else
+	DarkMode := 0
 
 ; Create GUI (AHK v2 style)
 MainGui := Gui("+Resize +MinSize +AlwaysOnTop", "Fisch Macro " . AppVersion)
@@ -108,12 +128,16 @@ MainGui.Add("Button", "x170 y210 w20 h18", "?").OnEvent("Click", (*) => HelpBlur
 AutoBlurCamera := MainGui.Add("Checkbox", "x266 y210 vAutoBlurCamera", "Enable")
 MainGui.Add("Text", "x30 y240", "Restart Delay (ms):")
 RestartDelay := MainGui.Add("Edit", "x220 y240 w100 vRestartDelay", "1500")
+RestartDelay.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y280", "Hold Rod Cast Duration (ms):")
 HoldRodCastDuration := MainGui.Add("Edit", "x220 y280 w100 vHoldRodCastDuration", "600")
+HoldRodCastDuration.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y320", "Wait for Bobber to Land (ms):")
 WaitForBobberDelay := MainGui.Add("Edit", "x220 y320 w100 vWaitForBobberDelay", "1000")
+WaitForBobberDelay.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y360", "Bait Delay (ms):")
 BaitDelay := MainGui.Add("Edit", "x220 y360 w100 vBaitDelay", "300")
+BaitDelay.OnEvent("Change", EditChangeDispatcher)
 
 MainGui.Add("Text", "x380 y300", "Seraphic Rod Check:")
 Sera := MainGui.Add("Checkbox", "x500 y300 vSera", "Enable")
@@ -139,17 +163,21 @@ MainGui.Add("Text", "x30 y105", "Shake Mode:")
 ShakeMode := MainGui.Add("DropDownList", "x190 y105 w100 vShakeMode", ["Click", "Navigation"])
 MainGui.Add("Text", "x30 y145", "Shake Failsafe (sec):")
 ShakeFailsafe := MainGui.Add("Edit", "x190 y145 w100 vShakeFailsafe", "20")
+ShakeFailsafe.OnEvent("Change", EditChangeDispatcher)
 
 ; Click set
 MainGui.Add("Text", "x30 y185", "Click Shake Color Tolerance:")
 ClickShakeColorTolerance := MainGui.Add("Edit", "x190 y185 w100 vClickShakeColorTolerance", "3")
+ClickShakeColorTolerance.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y225", "Click Scan Delay (ms):")
 ClickScanDelay := MainGui.Add("Edit", "x190 y225 w100 vClickScanDelay", "10")
+ClickScanDelay.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x380 y225", "Adjust the Click Speed")
 
 ; Nav set
 MainGui.Add("Text", "x30 y265", "Navigation Spam Delay (ms):")
 NavigationSpamDelay := MainGui.Add("Edit", "x190 y265 w100 vNavigationSpamDelay", "10")
+NavigationSpamDelay.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x380 y265", "Adjust the Navigation spam speed")
 
 MainGui.Add("Text", "x380 y65", "Check your Navigation Key in the Roblox settings")
@@ -166,19 +194,26 @@ MainGui.Add("Text", "x30 y65", "!!!!! Check the Control stat of your Rod !!!!!")
 MainGui.Font := "s10 c" FontColor " Segoe UI"
 MainGui.Add("Text", "x30 y85", "Control Value:")
 Control := MainGui.Add("Edit", "x180 y85 w100 vControl", "0")
+Control.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y125", "Fish Bar Color Tolerance:")
 FishBarColorTolerance := MainGui.Add("Edit", "x180 y125 w100 vFishBarColorTolerance", "5")
+FishBarColorTolerance.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y165", "White Bar Color Tolerance:")
 WhiteBarColorTolerance := MainGui.Add("Edit", "x180 y165 w100 vWhiteBarColorTolerance", "15")
+WhiteBarColorTolerance.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y205", "Arrow Color Tolerance:")
 ArrowColorTolerance := MainGui.Add("Edit", "x180 y205 w100 vArrowColorTolerance", "6")
+ArrowColorTolerance.OnEvent("Change", EditChangeDispatcher)
 
 MainGui.Add("Text", "x30 y245", "Scan Delay:")
 ScanDelay := MainGui.Add("Edit", "x180 y245 w100 vScanDelay", "10")
+ScanDelay.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y285", "Side Bar Ratio:")
 SideBarRatio := MainGui.Add("Edit", "x180 y285 w100 vSideBarRatio", "0.7")
+SideBarRatio.OnEvent("Change", EditChangeDispatcher)
 MainGui.Add("Text", "x30 y325", "Side Delay:")
 SideDelay := MainGui.Add("Edit", "x180 y325 w100 vSideDelay", "400")
+SideDelay.OnEvent("Change", EditChangeDispatcher)
 
 MainGui.Add("Text", "x30 y365", "Minigame Settings Guide")
 MainGui.Add("Text", "x30 y385", "Make your own config or use others")
@@ -210,6 +245,30 @@ RightAnkleBreakMultiplier := MainGui.Add("Edit", "x550 y360 w100 vRightAnkleBrea
 MainGui.Add("Text", "x380 y400", "Left Ankle Break Multiplier:")
 LeftAnkleBreakMultiplier := MainGui.Add("Edit", "x550 y400 w100 vLeftAnkleBreakMultiplier", "0.45")
 
+;
+; --- Input sanitizers for numeric fields ---
+SanitizeInt(ctrl) {
+	try val := ctrl.Value
+	catch
+		return
+	cleaned := RegExReplace(val, "[^0-9]")
+	if (cleaned != val)
+		ctrl.Value := cleaned
+}
+
+SanitizeFloat(ctrl) {
+	try val := ctrl.Value
+	catch
+		return
+	; allow digits and one decimal point
+	cleaned := RegExReplace(val, "[^0-9\.]")
+	; collapse multiple decimals to single
+	if (RegExMatch(cleaned, "\.(.*)\."))
+		cleaned := RegExReplace(cleaned, "\.(?=.*\.)", "")
+	if (cleaned != val)
+		ctrl.Value := cleaned
+}
+
 ; End of tab content - place buttons outside tabs
 Tab.UseTab()
 
@@ -240,16 +299,17 @@ MainGui.OnEvent("Close", (*) => ExitScript())
 
 ; Ensure edit/dropdown text remains black for readability
 SetEditFonts()
+ApplyTheme()
 
 ; Build master list of config names from Configs/ and root; keep "default" separate
 masterCfgList := []
 tmpList := []
 
 ; Ensure SettingsFileName has a sensible default early so it's safe to reference
-SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
+SettingsFileName := ConfigDir "\\default.ini"
 
 ; Collect from Configs folder first
-Loop Files, A_ScriptDir "\\Configs\\*.ini" {
+Loop Files, ConfigDir "\\*.ini" {
 	fileName := RegExReplace(A_LoopFileName, "\.ini$")
 	if (fileName == "" || fileName == ".")
 		continue
@@ -257,7 +317,7 @@ Loop Files, A_ScriptDir "\\Configs\\*.ini" {
 }
 
 ; Collect from root folder as well
-Loop Files, A_ScriptDir "\\*.ini" {
+Loop Files, ScriptDir "\\*.ini" {
 	fileName := RegExReplace(A_LoopFileName, "\.ini$")
 	if (fileName == "" || fileName == ".")
 		continue
@@ -282,7 +342,7 @@ FilterConfigs()
 try DropItem.Choose(1)  ; choose first item (default)
 catch
 	; ignore if dropdown isn't ready
-SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
+SettingsFileName := ConfigDir "\\default.ini"
 if FileExist(SettingsFileName)
 	LoadSettings()
 
@@ -326,12 +386,12 @@ q::
     
 
 ; Restore previously selected config if it exists
-savedConfig := IniReadVar(A_ScriptDir "\\default.ini", "General", "CurrentConfig", "")
+savedConfig := IniReadVar(ConfigDir "\\default.ini", "General", "CurrentConfig", "")
 if (savedConfig != "" && savedConfig != "ERROR") {
 	for index, configName in masterCfgList {
 		if (configName = savedConfig) {
 			DropItem.Value := savedConfig
-			SettingsFileName := A_ScriptDir '\Configs\' savedConfig '.ini'
+			SettingsFileName := ConfigDir '\\' savedConfig '.ini'
 			LoadSettings()
 			break
 		}
@@ -342,7 +402,7 @@ if (savedConfig != "" && savedConfig != "ERROR") {
 SetTimer(CheckHelpHover, 200)
 
 ; Ensure SettingsFileName has a sane default so writes go to a real file
-SettingsFileName := A_ScriptDir . "\default.ini"
+SettingsFileName := ConfigDir "\\default.ini"
 
 ; Load default settings on startup only if no config was restored
 if (DropItem = "") {
@@ -357,12 +417,12 @@ SelectItem(ctrl, eventInfo)
 	if (selected = "(no configs)" || selected = "(no matches)")
 		return
 	if (selected = "default") {
-		SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
+	SettingsFileName := ConfigDir "\\default.ini"
 	} else {
-		SettingsFileName := A_ScriptDir '\\Configs\\' selected '.ini'
+		SettingsFileName := ConfigDir '\\' selected '.ini'
 		; If not found in Configs folder, try root folder
 		if !FileExist(SettingsFileName)
-			SettingsFileName := A_ScriptDir '\\' selected '.ini'
+			SettingsFileName := ScriptDir '\\' selected '.ini'
 	}
 	if !FileExist(SettingsFileName)
 		return
@@ -493,6 +553,13 @@ ClearTooltip() {
 
 CheckHelpHover() {
 	MouseGetPos(&mx, &my)
+
+	; If mouse is over the config dropdown area, skip tooltip processing to avoid
+	; interfering with dropdown expansion/interaction.
+	; Dropdown is placed at x30 y460 w70 h22 (closed). Allow a slightly larger
+	; region to cover expanded list area.
+	if (mx >= 30 && mx <= 110 && my >= 440 && my <= 540)
+		return
 	if (mx >= 270 && mx <= 290 && my >= 50 && my <= 68) {
 		Tooltip("Lowers in-game graphics automatically to improve performance.", mx, my)
 		return
@@ -521,7 +588,7 @@ CheckHelpHover() {
 ; Save settings
 SaveSettings() {
 	; read values from control objects and write to INI
-	SettingsFileName := A_ScriptDir "\\Configs\\default.ini"
+	SettingsFileName := ConfigDir "\\default.ini"
 
 	FileAppend("", SettingsFileName) ; ensure file exists
 
@@ -578,28 +645,36 @@ SaveSettings() {
 ToggleDarkMode() {
 	global DarkMode, SettingsFileName
 	DarkMode := !DarkMode
+	; Persist to default config in ConfigDir
+	IniWriteVar(ConfigDir "\\default.ini", "General", "DarkMode", DarkMode)
+	; Also write to current SettingsFileName if set
 	if (SettingsFileName != "")
 		IniWriteVar(SettingsFileName, "General", "DarkMode", DarkMode)
-	IniWriteVar(A_ScriptDir "\\Configs\\default.ini", "General", "DarkMode", DarkMode)
-	Reload()  ; Reload the script to apply the new theme
+	ApplyTheme()
 }
 
-; Apply theme based on DarkMode
+; Apply theme based on DarkMode (idempotent)
 ApplyTheme() {
 	global DarkMode, MainGui, FontColor, BtnToggleDark, Tab
 	if (DarkMode) {
-		MainGui.Color := "0x1E1E1E"
+		MainGui.Color := 0x1E1E1E
 		FontColor := "FFFFFF"
-		BtnToggleDark.Text := "Dark Mode"
-		Tab.BackColor := "0x1E1E1E"  ; Match the main GUI color for tab backgrounds
+		if IsObject(BtnToggleDark)
+			BtnToggleDark.Text := "Light Mode"
+		Tab.BackColor := 0x1E1E1E
 	} else {
-		MainGui.Color := "0xF5F5F5"
+		MainGui.Color := 0xF5F5F5
 		FontColor := "000000"
-		BtnToggleDark.Text := "Light Mode"
-		Tab.BackColor := "0xF5F5F5"  ; Match the main GUI color for tab backgrounds
+		if IsObject(BtnToggleDark)
+			BtnToggleDark.Text := "Dark Mode"
+		Tab.BackColor := 0xF5F5F5
 	}
 	SetEditFonts()
-	DllCall("RedrawWindow", "Ptr", MainGui.Hwnd, "Ptr", 0, "Ptr", 0, "UInt", 0x1)  ; Force a visual refresh of the GUI after theme changes
+	try {
+		DllCall("RedrawWindow", "Ptr", MainGui.Hwnd, "Ptr", 0, "Ptr", 0, "UInt", 0x1)
+	} catch {
+		; ignore redraw failures
+	}
 }
 
 SetEditFonts() {
@@ -667,6 +742,8 @@ SetEditFonts() {
 	LeftAnkleBreakMultiplier.Font := fontSpec
 	LeftAnkleBreakMultiplier.BackColor := bgColor
 	DropItem.Font := fontSpec
+	; Keep dropdown text black for readability even in dark mode
+	DropItem.Font := "s10 c000000 Segoe UI"
 	DropItem.BackColor := bgColor
 	ShakeMode.Font := fontSpec
 	ShakeMode.BackColor := bgColor
@@ -834,15 +911,15 @@ LoadSettings() {
 		RightAnkleBreakMultiplier.Value := lRightAnkleBreakMultiplier
 		LeftAnkleBreakMultiplier.Value := lLeftAnkleBreakMultiplier
 
-		; read theme and apply if present (reload to apply new theme)
+		; read theme and apply if present
 		lDarkMode := IniReadVar(SettingsFileName, "General", "DarkMode", "")
 		newDarkMode := 0
 		if (lDarkMode == "1")
 			newDarkMode := 1
 		if (newDarkMode != DarkMode) {
 			DarkMode := newDarkMode
-			IniWriteVar(A_ScriptDir "\\Configs\\default.ini", "General", "DarkMode", DarkMode)
-			Reload()  ; Reload the script to apply the new theme
+			IniWriteVar(ConfigDir "\\default.ini", "General", "DarkMode", DarkMode)
+			ApplyTheme()  ; Apply theme immediately without reloading
 		}
 
 	MainGui.Font := "s10 c" FontColor " Segoe UI"
@@ -1761,4 +1838,38 @@ RestartMacro()
 		ClickShakeMode()
 	else if (ShakeMode == "Navigation")
 		NavigationShakeMode()
+}
+
+EditChangeDispatcher(ctrl, eventInfo) {
+	; ctrl is the control object that raised the event
+	try {
+		name := ctrl.Name
+	} catch {
+		name := ""
+	}
+	; Map controls to sanitizer choice. Use object identity where possible.
+	if (IsObject(ctrl)) {
+		; numeric integer-only controls
+		intControls := [RestartDelay, HoldRodCastDuration, WaitForBobberDelay, BaitDelay
+			, ShakeFailsafe, ClickShakeColorTolerance, ClickScanDelay, NavigationSpamDelay
+			, Control, FishBarColorTolerance, WhiteBarColorTolerance, ArrowColorTolerance
+			, ScanDelay, SideDelay]
+		for each, c in intControls {
+			if (c == ctrl) {
+				SanitizeInt(ctrl)
+				return
+			}
+		}
+		; float controls
+		floatControls := [SideBarRatio, StableRightMultiplier, StableRightDivision
+			, StableLeftMultiplier, StableLeftDivision, UnstableRightMultiplier
+			, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
+			, RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier]
+		for each, c in floatControls {
+			if (c == ctrl) {
+				SanitizeFloat(ctrl)
+				return
+			}
+		}
+	}
 }

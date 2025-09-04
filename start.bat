@@ -49,7 +49,7 @@ REM If found, start the AHK script with the detected executable
 if exist "%AHK_EXE%" (
     REM Launch the AutoHotkey executable elevated so the script runs with admin rights.
     REM This will trigger a UAC prompt; if the user accepts, the script runs as Administrator.
-    powershell -NoProfile -Command "& { Start-Process -FilePath '%AHK_EXE%' -ArgumentList '%~dp0V12 - Feb 8th.ahk' -Verb RunAs }"
+    powershell -NoProfile -Command "& { Start-Process -FilePath '%AHK_EXE%' -ArgumentList '%~dp0V13.ahk' -Verb RunAs }"
     exit /b 0
 ) else (
     REM If installer is bundled next to this script, run it; otherwise inform the user.
