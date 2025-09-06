@@ -92,11 +92,11 @@ MainGui.MarginY := 12
 ; Set base font and color depending on theme
 if (DarkMode) {
 	MainGui.Font := "s12 cFFFFFF Segoe UI"
-	MainGui.Color := "0x1E1E1E"
+	MainGui.Color := 0x1E1E1E
 	FontColor := "FFFFFF"
 } else {
 	MainGui.Font := "s12 c000000 Segoe UI"
-	MainGui.Color := "0xF5F5F5"
+	MainGui.Color := 0xF5F5F5
 	FontColor := "000000"
 }
 
@@ -105,27 +105,22 @@ MainGui.Font := "s10 c" FontColor " Segoe UI"
 Tab := MainGui.Add("Tab", "x10 y15 w780 h500", ["General Settings", "Shake Settings", "Minigame Settings"])
 
 if (DarkMode)
-    Tab.BackColor := "0x1E1E1E"
+	Tab.BackColor := 0x1E1E1E
 else
-    Tab.BackColor := "0xF5F5F5"
+	Tab.BackColor := 0xF5F5F5
 
 ; General Settings Tab
 Tab.UseTab("General Settings")
 MainGui.Add("Text", "x30 y50", "Lower Graphics:")
-MainGui.Add("Button", "x170 y50 w20 h18", "?").OnEvent("Click", (*) => HelpLower())
-AutoLowerGraphics := MainGui.Add("Checkbox", "x266 y50 vAutoLowerGraphics", "Enable")
+AutoLowerGraphics := MainGui.Add("Checkbox", "x170 y50 vAutoLowerGraphics", "Enable")
 MainGui.Add("Text", "x30 y90", "Zoom In:")
-MainGui.Add("Button", "x170 y90 w20 h18", "?").OnEvent("Click", (*) => HelpZoom())
-AutoZoomInCamera := MainGui.Add("Checkbox", "x266 y90 vAutoZoomInCamera", "Enable")
+AutoZoomInCamera := MainGui.Add("Checkbox", "x170 y90 vAutoZoomInCamera", "Enable")
 MainGui.Add("Text", "x30 y130", "Enable Camera Mode:")
-MainGui.Add("Button", "x170 y130 w20 h18", "?").OnEvent("Click", (*) => HelpEnableCam())
-AutoEnableCameraMode := MainGui.Add("Checkbox", "x266 y130 vAutoEnableCameraMode", "Enable")
+AutoEnableCameraMode := MainGui.Add("Checkbox", "x170 y130 vAutoEnableCameraMode", "Enable")
 MainGui.Add("Text", "x30 y170", "Look Down:")
-MainGui.Add("Button", "x170 y170 w20 h18", "?").OnEvent("Click", (*) => HelpLookDown())
-AutoLookDownCamera := MainGui.Add("Checkbox", "x266 y170 vAutoLookDownCamera", "Enable")
+AutoLookDownCamera := MainGui.Add("Checkbox", "x170 y170 vAutoLookDownCamera", "Enable")
 MainGui.Add("Text", "x30 y210", "Blur:")
-MainGui.Add("Button", "x170 y210 w20 h18", "?").OnEvent("Click", (*) => HelpBlur())
-AutoBlurCamera := MainGui.Add("Checkbox", "x266 y210 vAutoBlurCamera", "Enable")
+AutoBlurCamera := MainGui.Add("Checkbox", "x170 y210 vAutoBlurCamera", "Enable")
 MainGui.Add("Text", "x30 y240", "Restart Delay (ms):")
 RestartDelay := MainGui.Add("Edit", "x220 y240 w100 vRestartDelay", "1500")
 RestartDelay.OnEvent("Change", EditChangeDispatcher)
@@ -145,7 +140,8 @@ MainGui.Add("Text", "x380 y320", "Only Enable if youre using Seraphic Rod")
 
 ; Mini guide (compact clickable) - info buttons
 MainGui.Font := "s9 c" FontColor " Segoe UI"
-MainGui.Add("Button", "x360 y40 w16 h16", "i").OnEvent("Click", (*) => Info1())
+; Replace small info button with a Join Discord badge
+MainGui.Add("Button", "x330 y36 w120 h22 c00AEEF", "Join Discord").OnEvent("Click", (*) => Run("https://discord.gg/dHUM2ejQGY"))
 MainGui.Add("Button", "x360 y60 w16 h16", "i").OnEvent("Click", (*) => Info2())
 MainGui.Add("Button", "x360 y80 w16 h16", "i").OnEvent("Click", (*) => Info3())
 MainGui.Add("Button", "x360 y120 w16 h16", "i").OnEvent("Click", (*) => Info4())
@@ -273,24 +269,23 @@ SanitizeFloat(ctrl) {
 Tab.UseTab()
 
 ; Buttons row
-BtnSave := MainGui.Add("Button", "x200 y460 w80 h30", "Save settings")
+; Position dropdown-aligned button row closer to the dropdown. Buttons keep 100px spacing but start near the dropdown.
+BtnSave := MainGui.Add("Button", "x120 y460 w80 h30", "Save settings")
 BtnSave.OnEvent("Click", (*) => SaveSettings())
-BtnClear := MainGui.Add("Button", "x300 y460 w80 h30", "Clear settings")
+BtnClear := MainGui.Add("Button", "x220 y460 w80 h30", "Clear settings")
 BtnClear.OnEvent("Click", (*) => ClearSettings())
-BtnExit := MainGui.Add("Button", "x400 y460 w80 h30", "Exit")
+BtnExit := MainGui.Add("Button", "x420 y460 w80 h30", "Exit")
 BtnExit.OnEvent("Click", (*) => ExitScript())
-BtnLaunch := MainGui.Add("Button", "x500 y460 w80 h30", "Start Macro")
+BtnLaunch := MainGui.Add("Button", "x520 y460 w80 h30", "Start Macro")
 BtnLaunch.OnEvent("Click", (*) => Launch())
-BtnToggleDark := MainGui.Add("Button", "x600 y460 w80 h30 vDarkModeBtn", "Dark Mode")
+BtnToggleDark := MainGui.Add("Button", "x320 y460 w80 h30 vDarkModeBtn", "Dark Mode")
 BtnToggleDark.OnEvent("Click", (*) => ToggleDarkMode())
 if (DarkMode)
-    BtnToggleDark.Text := "Dark Mode"
+	BtnToggleDark.Text := "Light Mode"
 else
-    BtnToggleDark.Text := "Light Mode"
+	BtnToggleDark.Text := "Dark Mode"
 MainGui.Add("Text", "x30 y440", "Config:")
-; Make dropdown show multiple rows when expanded (r7) and closed height compact (h22)
-DropItem := MainGui.Add("DropDownList", "x30 y460 w70 h22 r7 vDropItem")
-DropItem.OnEvent("Change", SelectItem)
+; Dropdown is created only by FilterConfigs()
 
 SetEditFonts()  ; Apply theme colors to all controls
 
@@ -447,7 +442,8 @@ FilterConfigs()
 	} catch {
 		; ignore if control doesn't exist yet
 	}
-	DropItem := MainGui.Add("DropDownList", "x30 y460 w100 h22 r7", configList)
+	; Create dropdown matching Save button size (w80 h30). r7 keeps expanded list scrollable.
+	DropItem := MainGui.Add("DropDownList", "x30 y460 w80 h30 r7", configList)
 	DropItem.OnEvent("Change", SelectItem)
 	SetEditFonts()
 }
@@ -652,19 +648,19 @@ ToggleDarkMode() {
 ApplyTheme() {
 	global DarkMode, MainGui, FontColor, BtnToggleDark, Tab
 	if (DarkMode) {
-		MainGui.Color := "0x1E1E1E"
+		MainGui.Color := 0x1E1E1E
 		FontColor := "FFFFFF"
 		if IsObject(BtnToggleDark)
 			BtnToggleDark.Text := "Light Mode"
 		if IsObject(Tab)
-			Tab.BackColor := "0x1E1E1E"
+			Tab.BackColor := 0x1E1E1E
 	} else {
-		MainGui.Color := "0xF5F5F5"
+		MainGui.Color := 0xF5F5F5
 		FontColor := "000000"
 		if IsObject(BtnToggleDark)
 			BtnToggleDark.Text := "Dark Mode"
 		if IsObject(Tab)
-			Tab.BackColor := "0xF5F5F5"
+			Tab.BackColor := 0xF5F5F5
 	}
 	SetEditFonts()
 	try {
@@ -736,62 +732,66 @@ SetEditFonts() {
 	UnstableLeftDivision.BackColor := bgColor
 	RightAnkleBreakMultiplier.Font := fontSpec
 	RightAnkleBreakMultiplier.BackColor := bgColor
+	RestartDelay.Font := fontSpec
+	RestartDelay.BackColor := bgColor
+	HoldRodCastDuration.Font := fontSpec
+	HoldRodCastDuration.BackColor := bgColor
+	WaitForBobberDelay.Font := fontSpec
+	WaitForBobberDelay.BackColor := bgColor
+	BaitDelay.Font := fontSpec
+	BaitDelay.BackColor := bgColor
+	NavigationKey.Font := fontSpec
+	NavigationKey.BackColor := bgColor
+	ShakeFailsafe.Font := fontSpec
+	ShakeFailsafe.BackColor := bgColor
+	ClickShakeColorTolerance.Font := fontSpec
+	ClickShakeColorTolerance.BackColor := bgColor
+	ClickScanDelay.Font := fontSpec
+	ClickScanDelay.BackColor := bgColor
+	NavigationSpamDelay.Font := fontSpec
+	NavigationSpamDelay.BackColor := bgColor
+	Control.Font := fontSpec
+	Control.BackColor := bgColor
+	FishBarColorTolerance.Font := fontSpec
+	FishBarColorTolerance.BackColor := bgColor
+	WhiteBarColorTolerance.Font := fontSpec
+	WhiteBarColorTolerance.BackColor := bgColor
+	ArrowColorTolerance.Font := fontSpec
+	ArrowColorTolerance.BackColor := bgColor
+	ScanDelay.Font := fontSpec
+	ScanDelay.BackColor := bgColor
+	SideBarRatio.Font := fontSpec
+	SideBarRatio.BackColor := bgColor
+	SideDelay.Font := fontSpec
+	SideDelay.BackColor := bgColor
+	StableRightMultiplier.Font := fontSpec
+	StableRightMultiplier.BackColor := bgColor
+	StableRightDivision.Font := fontSpec
+	StableRightDivision.BackColor := bgColor
+	StableLeftMultiplier.Font := fontSpec
+	StableLeftMultiplier.BackColor := bgColor
+	StableLeftDivision.Font := fontSpec
+	StableLeftDivision.BackColor := bgColor
+	UnstableRightMultiplier.Font := fontSpec
+	UnstableRightMultiplier.BackColor := bgColor
+	UnstableRightDivision.Font := fontSpec
+	UnstableRightDivision.BackColor := bgColor
+	UnstableLeftMultiplier.Font := fontSpec
+	UnstableLeftMultiplier.BackColor := bgColor
+	UnstableLeftDivision.Font := fontSpec
+	UnstableLeftDivision.BackColor := bgColor
+	RightAnkleBreakMultiplier.Font := fontSpec
+	RightAnkleBreakMultiplier.BackColor := bgColor
 	LeftAnkleBreakMultiplier.Font := fontSpec
 	LeftAnkleBreakMultiplier.BackColor := bgColor
-	DropItem.Font := fontSpec
-	; Keep dropdown text black for readability even in dark mode
-	DropItem.Font := "s10 c000000 Segoe UI"
-	DropItem.BackColor := bgColor
-	ShakeMode.Font := fontSpec
-	ShakeMode.BackColor := bgColor
-}
-
-; Clear settings to defaults
-ClearSettings() {
-	global AutoLowerGraphics, AutoZoomInCamera, AutoEnableCameraMode, AutoLookDownCamera, AutoBlurCamera
-	global RestartDelay, HoldRodCastDuration, WaitForBobberDelay, BaitDelay, Sera, NavigationKey, ShakeMode, ShakeFailsafe
-	global ClickShakeColorTolerance, ClickScanDelay, NavigationSpamDelay, Control, FishBarColorTolerance
-	global WhiteBarColorTolerance, ArrowColorTolerance, ScanDelay, SideBarRatio, SideDelay
-	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
-	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
-	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier, DropItem
-	
-	; Reset all controls to default values
-	AutoLowerGraphics.Value := 0
-	AutoZoomInCamera.Value := 0
-	AutoEnableCameraMode.Value := 0
-	AutoLookDownCamera.Value := 0
-	AutoBlurCamera.Value := 0
-	
-	RestartDelay.Value := "1500"
-	HoldRodCastDuration.Value := "600"
-	WaitForBobberDelay.Value := "1000"
-	BaitDelay.Value := "300"
-	Sera.Value := 0
-	
-	NavigationKey.Value := ""
-	ShakeMode.Value := 1
-	ShakeFailsafe.Value := 0
-	
-	ClickShakeColorTolerance.Value := ""
-	ClickScanDelay.Value := ""
-	NavigationSpamDelay.Value := ""
-	
-	Control.Value := ""
-	FishBarColorTolerance.Value := ""
-	WhiteBarColorTolerance.Value := ""
-	ArrowColorTolerance.Value := ""
-	
-	ScanDelay.Value := ""
-	SideBarRatio.Value := ""
-	SideDelay.Value := ""
-	
-	StableRightMultiplier.Value := ""
-	StableRightDivision.Value := ""
-	StableLeftMultiplier.Value := ""
-	StableLeftDivision.Value := ""
-	
-	UnstableRightMultiplier.Value := ""
+	if IsSet(DropItem) && IsObject(DropItem) {
+		DropItem.Font := fontSpec
+		DropItem.BackColor := bgColor
+	}
+	if IsSet(ShakeMode) && IsObject(ShakeMode) {
+		ShakeMode.Font := fontSpec
+		ShakeMode.BackColor := bgColor
+	}
 	UnstableRightDivision.Value := ""
 	UnstableLeftMultiplier.Value := ""
 	UnstableLeftDivision.Value := ""
@@ -1869,4 +1869,66 @@ EditChangeDispatcher(ctrl, eventInfo) {
 			}
 		}
 	}
+}
+
+; Clear settings back to defaults (keeps config selection intact)
+ClearSettings() {
+	global AutoLowerGraphics, AutoZoomInCamera, AutoEnableCameraMode, AutoLookDownCamera, AutoBlurCamera
+	global RestartDelay, HoldRodCastDuration, WaitForBobberDelay, BaitDelay, Sera, NavigationKey, ShakeMode, ShakeFailsafe
+	global ClickShakeColorTolerance, ClickScanDelay, NavigationSpamDelay, Control, FishBarColorTolerance
+	global WhiteBarColorTolerance, ArrowColorTolerance, ScanDelay, SideBarRatio, SideDelay
+	global StableRightMultiplier, StableRightDivision, StableLeftMultiplier, StableLeftDivision
+	global UnstableRightMultiplier, UnstableRightDivision, UnstableLeftMultiplier, UnstableLeftDivision
+	global RightAnkleBreakMultiplier, LeftAnkleBreakMultiplier
+
+	; Uncheck feature checkboxes
+	try {
+		AutoLowerGraphics.Value := 0
+		AutoZoomInCamera.Value := 0
+		AutoEnableCameraMode.Value := 0
+		AutoLookDownCamera.Value := 0
+		AutoBlurCamera.Value := 0
+	} catch {
+		; ignore missing controls
+	}
+
+	; General defaults
+	RestartDelay.Value := "1500"
+	HoldRodCastDuration.Value := "600"
+	WaitForBobberDelay.Value := "1000"
+	BaitDelay.Value := "300"
+	Sera.Value := 0
+
+	; Shake defaults
+	NavigationKey.Value := '\'
+	ShakeMode.Value := 1
+	ShakeFailsafe.Value := "20"
+	ClickShakeColorTolerance.Value := "3"
+	ClickScanDelay.Value := "10"
+	NavigationSpamDelay.Value := "10"
+
+	; Minigame defaults
+	Control.Value := "0"
+	FishBarColorTolerance.Value := "5"
+	WhiteBarColorTolerance.Value := "15"
+	ArrowColorTolerance.Value := "6"
+	ScanDelay.Value := "10"
+	SideBarRatio.Value := "0.7"
+	SideDelay.Value := "400"
+
+	StableRightMultiplier.Value := "2.36"
+	StableRightDivision.Value := "1.55"
+	StableLeftMultiplier.Value := "1.211"
+	StableLeftDivision.Value := "1.12"
+
+	UnstableRightMultiplier.Value := "2.665"
+	UnstableRightDivision.Value := "1.5"
+	UnstableLeftMultiplier.Value := "2.19"
+	UnstableLeftDivision.Value := "1"
+
+	RightAnkleBreakMultiplier.Value := "0.75"
+	LeftAnkleBreakMultiplier.Value := "0.45"
+
+	SetEditFonts()
+	MsgBox("Settings cleared to defaults.", "Info", 0x40000)
 }
