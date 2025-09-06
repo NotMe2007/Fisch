@@ -439,21 +439,16 @@ FilterConfigs()
 	for name in masterCfgList {
 		configList.Push(name)
 	}
-
-	; Try to remove existing dropdown control (if present) and recreate it with items
+	if (configList.Length <= 1) {
+		configList := ["default", "(no configs)"]
+	}
 	try {
 		DropItem.Delete()
 	} catch {
 		; ignore if control doesn't exist yet
 	}
-
-	; Recreate dropdown so items reliably populate and sizing can be controlled
-	; NOTE: do not use the vDropItem option here to avoid "control already exists" when re-adding
-	; Use r7 so expanded list is scrollable when many items; keep closed height compact
-	DropItem := MainGui.Add("DropDownList", "x30 y460 w70 h22 r7", configList)
+	DropItem := MainGui.Add("DropDownList", "x30 y460 w100 h22 r7", configList)
 	DropItem.OnEvent("Change", SelectItem)
-
-	; Re-apply theme/fonts to the newly created control
 	SetEditFonts()
 }
 
@@ -657,17 +652,19 @@ ToggleDarkMode() {
 ApplyTheme() {
 	global DarkMode, MainGui, FontColor, BtnToggleDark, Tab
 	if (DarkMode) {
-		MainGui.Color := 0x1E1E1E
+		MainGui.Color := "0x1E1E1E"
 		FontColor := "FFFFFF"
 		if IsObject(BtnToggleDark)
 			BtnToggleDark.Text := "Light Mode"
-		Tab.BackColor := 0x1E1E1E
+		if IsObject(Tab)
+			Tab.BackColor := "0x1E1E1E"
 	} else {
-		MainGui.Color := 0xF5F5F5
+		MainGui.Color := "0xF5F5F5"
 		FontColor := "000000"
 		if IsObject(BtnToggleDark)
 			BtnToggleDark.Text := "Dark Mode"
-		Tab.BackColor := 0xF5F5F5
+		if IsObject(Tab)
+			Tab.BackColor := "0xF5F5F5"
 	}
 	SetEditFonts()
 	try {
